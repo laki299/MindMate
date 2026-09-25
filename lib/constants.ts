@@ -1,7 +1,7 @@
 export const APP_NAME = "MindMate";
 
 export const COLORS = {
-  primary: "#7C3AED",      // Soft purple
+  primary: "#7C3AED",
   primaryLight: "#A78BFA",
   background: "#F8FAFC",
   card: "#FFFFFF",
@@ -17,5 +17,7 @@ export const COIN_RATES = {
   TEXT: 2,
   VOICE_PER_SECOND: 1,
   CALL_PER_SECOND: 2,
-  AD_REWARD: 12,
+  AD_REWARD: 10,
+  SHORT_VIDEO: 10,
+  OFFERWALL_PER_CENT: 12,
 };
