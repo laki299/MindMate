@@ -53,7 +53,7 @@ export default function RootLayout() {
         <Stack.Screen name="cabin/[hostId]" />
         <Stack.Screen name="conversation/[sessionId]" />
         <Stack.Screen name="earn" />
+        <Stack.Screen name="admin" />
       </Stack>
     </>
   );
-}
