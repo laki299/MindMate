@@ -386,3 +386,4 @@ export default function ConversationScreen() {
       </Modal>
     </KeyboardAvoidingView>
   );
+}
