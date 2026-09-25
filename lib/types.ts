@@ -2,6 +2,7 @@ export type UserRole = "user" | "host" | "admin";
 export type HostStatus = "available" | "busy" | "offline";
 export type SessionStatus = "waiting" | "active" | "ended" | "expired";
 export type ServiceType = "text" | "voice" | "audio_call";
+
 export type TransactionType =
   | "ad_reward"
   | "text"
@@ -10,6 +11,7 @@ export type TransactionType =
   | "withdrawal"
   | "admin_adjustment"
   | "gift";
+
 export type WithdrawalStatus = "pending" | "approved" | "paid" | "rejected";
 
 export interface Profile {
