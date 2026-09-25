@@ -42,7 +42,7 @@ export default function ProfileScreen() {
       </View>
 
       <View style={{ padding: 20 }}>
-        {/* User Information Card */}
+        {/* User Info Card */}
         <View
           style={{
             backgroundColor: COLORS.card,
@@ -71,7 +71,7 @@ export default function ProfileScreen() {
           </Text>
         </View>
 
-        {/* Admin Panel Button (Only visible if role is admin) */}
+        {/* Admin Panel Link */}
         {profile?.role === "admin" && (
           <TouchableOpacity
             onPress={() => router.push("/admin")}
@@ -87,6 +87,26 @@ export default function ProfileScreen() {
           >
             <Text style={{ color: COLORS.primary, fontWeight: "600", fontSize: 16 }}>
               Admin Panel
+            </Text>
+          </TouchableOpacity>
+        )}
+
+        {/* Host Dashboard Link */}
+        {profile?.role === "host" && (
+          <TouchableOpacity
+            onPress={() => router.push("/host")}
+            style={{
+              backgroundColor: COLORS.card,
+              borderRadius: 12,
+              padding: 16,
+              alignItems: "center",
+              marginBottom: 12,
+              borderWidth: 1,
+              borderColor: COLORS.border,
+            }}
+          >
+            <Text style={{ color: COLORS.primary, fontWeight: "600", fontSize: 16 }}>
+              Host Dashboard
             </Text>
           </TouchableOpacity>
         )}
