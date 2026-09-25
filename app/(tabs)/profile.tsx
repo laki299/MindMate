@@ -25,6 +25,7 @@ export default function ProfileScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.background }}>
+      {/* Header */}
       <View
         style={{
           paddingTop: 60,
@@ -41,6 +42,7 @@ export default function ProfileScreen() {
       </View>
 
       <View style={{ padding: 20 }}>
+        {/* User Information Card */}
         <View
           style={{
             backgroundColor: COLORS.card,
@@ -69,6 +71,27 @@ export default function ProfileScreen() {
           </Text>
         </View>
 
+        {/* Admin Panel Button (Only visible if role is admin) */}
+        {profile?.role === "admin" && (
+          <TouchableOpacity
+            onPress={() => router.push("/admin")}
+            style={{
+              backgroundColor: COLORS.card,
+              borderRadius: 12,
+              padding: 16,
+              alignItems: "center",
+              marginBottom: 12,
+              borderWidth: 1,
+              borderColor: COLORS.border,
+            }}
+          >
+            <Text style={{ color: COLORS.primary, fontWeight: "600", fontSize: 16 }}>
+              Admin Panel
+            </Text>
+          </TouchableOpacity>
+        )}
+
+        {/* Logout Button */}
         <TouchableOpacity
           onPress={handleLogout}
           style={{
