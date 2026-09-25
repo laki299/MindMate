@@ -300,4 +300,5 @@ export default function CabinScreen() {
       </ScrollView>
     </View>
   );
-      }
+ }
+                              
