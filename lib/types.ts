@@ -9,7 +9,7 @@ export type TransactionType =
   | "audio_call"
   | "withdrawal"
   | "admin_adjustment"
-  | "gift"; // <-- 'gift' টাইপ যোগ করা হয়েছে (SQL আপডেটের সাথে সিঙ্ক করার জন্য)
+  | "gift";
 export type WithdrawalStatus = "pending" | "approved" | "paid" | "rejected";
 
 export interface Profile {
@@ -85,7 +85,7 @@ export interface AppSettings {
   short_video_cooldown_seconds?: number;
   short_video_limit_per_hour?: number;
   offerwall_coins_per_cent?: number;
-  monetization_enabled: boolean; // <-- নতুন ফিল্ড যোগ করা হয়েছে
+  monetization_enabled: boolean;
 }
 
 export type Database = {
