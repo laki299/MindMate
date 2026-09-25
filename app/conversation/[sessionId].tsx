@@ -9,44 +9,52 @@ import {
   Platform,
   ActivityIndicator,
   Alert,
+  Modal,
 } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
 import { supabase } from "../../lib/supabase";
 import { useAuthStore } from "../../stores/authStore";
-import { Message, Session } from "../../lib/types";
-import { COLORS } from "../../lib/constants";
+import { Message, Session, AppSettings } from "../../lib/types";
+import { COLORS, COIN_RATES } from "../../lib/constants";
 
 export default function ConversationScreen() {
   const { sessionId } = useLocalSearchParams<{ sessionId: string }>();
-  const { session: authSession, profile } = useAuthStore();
+  const { session: authSession, profile, setProfile } = useAuthStore();
   const [messages, setMessages] = useState<Message[]>([]);
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [currentSession, setCurrentSession] = useState<Session | null>(null);
+  const [settings, setSettings] = useState<AppSettings | null>(null);
+  const [giftVisible, setGiftVisible] = useState(false);
+  const [giftAmount, setGiftAmount] = useState("");
   const flatListRef = useRef<FlatList>(null);
+
+  const isMonetizationOn = settings?.monetization_enabled ?? true;
+  const textCost = isMonetizationOn ? (settings?.text_coin_cost ?? COIN_RATES.TEXT) : 0;
 
   async function fetchData() {
     if (!sessionId) return;
 
-    const [sessionRes, messagesRes] = await Promise.all([
+    const [sessionRes, messagesRes, settingsRes] = await Promise.all([
       supabase.from("sessions").select("*").eq("id", sessionId).single(),
       supabase
         .from("messages")
         .select("*")
         .eq("session_id", sessionId)
         .order("created_at", { ascending: true }),
+      supabase.from("app_settings").select("*").eq("id", 1).single(),
     ]);
 
     if (sessionRes.data) setCurrentSession(sessionRes.data);
     if (messagesRes.data) setMessages(messagesRes.data);
+    if (settingsRes.data) setSettings(settingsRes.data);
     setLoading(false);
   }
 
   useEffect(() => {
     fetchData();
 
-    // Realtime messages
     const channel = supabase
       .channel(`conversation-${sessionId}`)
       .on(
@@ -69,25 +77,94 @@ export default function ConversationScreen() {
   }, [sessionId]);
 
   async function handleSend() {
-    if (!text.trim() || !authSession?.user || !sessionId) return;
+    if (!text.trim() || !authSession?.user || !sessionId || !currentSession) return;
 
     const content = text.trim();
+
+    // Monetization ON থাকলে ব্যালেন্স চেক
+    if (isMonetizationOn && textCost > 0) {
+      if ((profile?.coin_balance ?? 0) < textCost) {
+        Alert.alert("কম Coin", `মেসেজ পাঠাতে ${textCost} Coin লাগবে। আগে Coin সংগ্রহ করো।`);
+        return;
+      }
+    }
+
     setText("");
     setSending(true);
 
-    // এখানে পরে coin charge করা হবে (transfer_coins function দিয়ে)
-    const { error } = await supabase.from("messages").insert({
-      session_id: sessionId,
-      sender_id: authSession.user.id,
-      content,
-      coin_charged: 2, // temporary, পরে settings থেকে নেব
-    });
+    try {
+      // মেসেজ ইনসার্ট
+      const { error: msgError } = await supabase.from("messages").insert({
+        session_id: sessionId,
+        sender_id: authSession.user.id,
+        content,
+        coin_charged: textCost,
+      });
+
+      if (msgError) throw msgError;
+
+      // Monetization ON + User মেসেজ পাঠালে Coin কাটো
+      if (isMonetizationOn && textCost > 0 && authSession.user.id === currentSession.user_id) {
+        await supabase.rpc("transfer_coins", {
+          p_from_user_id: authSession.user.id,
+          p_to_host_id: currentSession.host_id,
+          p_amount: textCost,
+          p_type: "text",
+          p_service_type: "text",
+          p_session_id: sessionId,
+          p_description: "Text message",
+        });
+
+        // লোকাল ব্যালেন্স আপডেট
+        if (profile) {
+          setProfile({
+            ...profile,
+            coin_balance: profile.coin_balance - textCost,
+          });
+        }
+      }
+    } catch (err: any) {
+      Alert.alert("Error", err.message || "মেসেজ পাঠানো যায়নি");
+      setText(content);
+    }
 
     setSending(false);
+  }
 
-    if (error) {
-      Alert.alert("Error", error.message);
-      setText(content); // restore text
+  async function handleGift() {
+    if (!authSession?.user || !currentSession || !profile) return;
+
+    const amount = parseInt(giftAmount, 10);
+    if (!amount || amount <= 0) {
+      Alert.alert("Error", "সঠিক পরিমাণ লিখো");
+      return;
+    }
+
+    if (profile.coin_balance < amount) {
+      Alert.alert("কম Coin", "তোমার ব্যালেন্সে পর্যাপ্ত Coin নেই");
+      return;
+    }
+
+    try {
+      await supabase.rpc("transfer_coins", {
+        p_from_user_id: authSession.user.id,
+        p_to_host_id: currentSession.host_id,
+        p_amount: amount,
+        p_type: "gift",
+        p_session_id: sessionId,
+        p_description: `Gift ${amount} coins`,
+      });
+
+      setProfile({
+        ...profile,
+        coin_balance: profile.coin_balance - amount,
+      });
+
+      setGiftVisible(false);
+      setGiftAmount("");
+      Alert.alert("সফল!", `${amount} Coin Host-কে গিফট করা হয়েছে`);
+    } catch (err: any) {
+      Alert.alert("Error", err.message || "Gift করা যায়নি");
     }
   }
 
@@ -137,13 +214,23 @@ export default function ConversationScreen() {
           <Text style={{ fontSize: 24, color: COLORS.primary }}>‹</Text>
         </TouchableOpacity>
 
-        <Text style={{ fontSize: 17, fontWeight: "600", color: COLORS.text }}>
-          Conversation
-        </Text>
+        <View style={{ alignItems: "center" }}>
+          <Text style={{ fontSize: 17, fontWeight: "600", color: COLORS.text }}>
+            Conversation
+          </Text>
+          {!isMonetizationOn && (
+            <Text style={{ fontSize: 11, color: COLORS.success }}>ফ্রি মোড</Text>
+          )}
+        </View>
 
-        <TouchableOpacity onPress={handleEndConversation}>
-          <Text style={{ color: COLORS.danger, fontWeight: "600" }}>End</Text>
-        </TouchableOpacity>
+        <View style={{ flexDirection: "row", gap: 12 }}>
+          <TouchableOpacity onPress={() => setGiftVisible(true)}>
+            <Text style={{ color: COLORS.primary, fontWeight: "600" }}>Gift</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handleEndConversation}>
+            <Text style={{ color: COLORS.danger, fontWeight: "600" }}>End</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Messages */}
@@ -191,7 +278,7 @@ export default function ConversationScreen() {
         <TextInput
           value={text}
           onChangeText={setText}
-          placeholder="মেসেজ লিখো..."
+          placeholder={isMonetizationOn ? `মেসেজ লিখো (${textCost} Coin)` : "মেসেজ লিখো (ফ্রি)"}
           placeholderTextColor={COLORS.textSecondary}
           style={{
             flex: 1,
@@ -221,5 +308,81 @@ export default function ConversationScreen() {
           <Text style={{ color: "#fff", fontSize: 18 }}>➤</Text>
         </TouchableOpacity>
       </View>
+
+      {/* Gift Modal */}
+      <Modal visible={giftVisible} transparent animationType="fade">
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: "rgba(0,0,0,0.5)",
+            justifyContent: "center",
+            padding: 24,
+          }}
+        >
+          <View
+            style={{
+              backgroundColor: COLORS.card,
+              borderRadius: 20,
+              padding: 24,
+            }}
+          >
+            <Text style={{ fontSize: 18, fontWeight: "700", color: COLORS.text, marginBottom: 8 }}>
+              Host-কে Gift করো
+            </Text>
+            <Text style={{ color: COLORS.textSecondary, marginBottom: 16 }}>
+              তোমার ব্যালেন্স: 🪙 {profile?.coin_balance ?? 0}
+            </Text>
+
+            <TextInput
+              placeholder="কত Coin Gift করবে?"
+              placeholderTextColor={COLORS.textSecondary}
+              value={giftAmount}
+              onChangeText={setGiftAmount}
+              keyboardType="number-pad"
+              style={{
+                backgroundColor: COLORS.background,
+                borderRadius: 12,
+                padding: 14,
+                fontSize: 16,
+                borderWidth: 1,
+                borderColor: COLORS.border,
+                color: COLORS.text,
+                marginBottom: 16,
+              }}
+            />
+
+            <View style={{ flexDirection: "row", gap: 12 }}>
+              <TouchableOpacity
+                onPress={() => {
+                  setGiftVisible(false);
+                  setGiftAmount("");
+                }}
+                style={{
+                  flex: 1,
+                  backgroundColor: "#F1F5F9",
+                  borderRadius: 12,
+                  padding: 14,
+                  alignItems: "center",
+                }}
+              >
+                <Text style={{ fontWeight: "600", color: COLORS.text }}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={handleGift}
+                style={{
+                  flex: 1,
+                  backgroundColor: COLORS.primary,
+                  borderRadius: 12,
+                  padding: 14,
+                  alignItems: "center",
+                }}
+              >
+                <Text style={{ fontWeight: "600", color: "#fff" }}>Gift করো</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
