@@ -6,3 +6,4 @@ export default function AdminLayout() {
       <Stack.Screen name="index" />
     </Stack>
   );
+}
