@@ -97,6 +97,7 @@ export default function HomeScreen() {
         <Text style={{ fontSize: 24, fontWeight: "700", color: COLORS.text }}>
           MindMate
         </Text>
+
         <View
           style={{
             flexDirection: "row",
@@ -121,6 +122,25 @@ export default function HomeScreen() {
             </Text>
           </View>
         </View>
+
+        {/* Free Coins Button */}
+        <TouchableOpacity
+          onPress={() => router.push("/earn")}
+          style={{
+            backgroundColor: COLORS.primary,
+            borderRadius: 14,
+            paddingVertical: 12,
+            paddingHorizontal: 20,
+            marginTop: 16,
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <Text style={{ color: "#fff", fontSize: 16, fontWeight: "700" }}>
+            🎁 ফ্রি কয়েন জমা
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {/* Host List */}
@@ -208,9 +228,7 @@ export default function HomeScreen() {
                 </Text>
               </View>
 
-              <View
-                style={{ flexDirection: "row", marginTop: 6, gap: 8 }}
-              >
+              <View style={{ flexDirection: "row", marginTop: 6, gap: 8 }}>
                 {item.text_enabled && (
                   <Text style={{ fontSize: 12, color: COLORS.textSecondary }}>
                     💬 Text
@@ -235,4 +253,4 @@ export default function HomeScreen() {
       />
     </View>
   );
-          }
+}
