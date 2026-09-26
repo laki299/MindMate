@@ -30,7 +30,6 @@ export default function AdminDashboard() {
       .select("*")
       .eq("id", 1)
       .single();
-
     if (data) setSettings(data);
     setLoading(false);
   }
@@ -41,7 +40,6 @@ export default function AdminDashboard() {
 
   async function toggleMonetization(value: boolean) {
     setUpdating(true);
-
     const { error } = await supabase
       .from("app_settings")
       .update({
@@ -49,7 +47,6 @@ export default function AdminDashboard() {
         updated_at: new Date().toISOString(),
       })
       .eq("id", 1);
-
     setUpdating(false);
 
     if (error) {
@@ -60,12 +57,9 @@ export default function AdminDashboard() {
     setSettings((prev) =>
       prev ? { ...prev, monetization_enabled: value } : prev
     );
-
     Alert.alert(
       "সফল",
-      value
-        ? "Monetization চালু — Coin কাটা হবে।"
-        : "Monetization বন্ধ — সব কথাবার্তা ফ্রি।"
+      value ? "Monetization চালু" : "Monetization বন্ধ — সব ফ্রি"
     );
   }
 
@@ -75,7 +69,6 @@ export default function AdminDashboard() {
       Alert.alert("Error", "UUID লিখো");
       return;
     }
-
     setSearching(true);
     const { data, error } = await supabase
       .from("profiles")
@@ -89,7 +82,6 @@ export default function AdminDashboard() {
       Alert.alert("পাওয়া যায়নি", "এই UUID এর ইউজার নেই");
       return;
     }
-
     setFoundUser(data);
   }
 
@@ -104,12 +96,10 @@ export default function AdminDashboard() {
             .from("profiles")
             .update({ is_banned: true })
             .eq("id", id);
-
           if (error) {
             Alert.alert("Error", error.message);
             return;
           }
-
           setFoundUser((u) => (u ? { ...u, is_banned: true } : u));
           Alert.alert("সফল", "ইউজার ব্যান করা হয়েছে");
         },
@@ -122,12 +112,10 @@ export default function AdminDashboard() {
       .from("profiles")
       .update({ is_banned: false })
       .eq("id", id);
-
     if (error) {
       Alert.alert("Error", error.message);
       return;
     }
-
     setFoundUser((u) => (u ? { ...u, is_banned: false } : u));
     Alert.alert("সফল", "Ban তুলে নেওয়া হয়েছে");
   }
@@ -144,7 +132,7 @@ export default function AdminDashboard() {
         }}
       >
         <Text style={{ color: COLORS.textSecondary, textAlign: "center" }}>
-          শুধুমাত্র Admin এই পেজ দেখতে পারবে
+          শুধুমাত্র Admin
         </Text>
         <TouchableOpacity
           onPress={() => router.back()}
@@ -199,13 +187,12 @@ export default function AdminDashboard() {
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 20 }}>
-        {/* Monetization */}
         <View
           style={{
             backgroundColor: COLORS.card,
             borderRadius: 16,
             padding: 20,
-            marginBottom: 20,
+            marginBottom: 16,
             borderWidth: 1,
             borderColor: COLORS.border,
           }}
@@ -235,7 +222,6 @@ export default function AdminDashboard() {
                   : "বন্ধ — সব ফ্রি"}
               </Text>
             </View>
-
             <Switch
               value={settings.monetization_enabled}
               onValueChange={toggleMonetization}
@@ -248,7 +234,26 @@ export default function AdminDashboard() {
           </View>
         </View>
 
-        {/* Rates */}
+        <TouchableOpacity
+          onPress={() => router.push("/admin/reports")}
+          style={{
+            backgroundColor: COLORS.card,
+            borderRadius: 14,
+            padding: 18,
+            marginBottom: 20,
+            borderWidth: 1,
+            borderColor: COLORS.border,
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          <Text style={{ fontSize: 16, fontWeight: "600", color: COLORS.text }}>
+            Reports লিস্ট
+          </Text>
+          <Text style={{ fontSize: 18, color: COLORS.primary }}>›</Text>
+        </TouchableOpacity>
+
         <Text
           style={{
             fontSize: 16,
@@ -259,7 +264,6 @@ export default function AdminDashboard() {
         >
           বর্তমান রেট
         </Text>
-
         <View
           style={{
             backgroundColor: COLORS.card,
@@ -267,7 +271,7 @@ export default function AdminDashboard() {
             padding: 16,
             borderWidth: 1,
             borderColor: COLORS.border,
-            marginBottom: 20,
+            marginBottom: 24,
           }}
         >
           <View
@@ -307,10 +311,7 @@ export default function AdminDashboard() {
             </Text>
           </View>
           <View
-            style={{
-              flexDirection: "row",
-              justifyContent: "space-between",
-            }}
+            style={{ flexDirection: "row", justifyContent: "space-between" }}
           >
             <Text style={{ color: COLORS.textSecondary }}>Rewarded Ad</Text>
             <Text style={{ fontWeight: "600", color: COLORS.text }}>
@@ -319,28 +320,6 @@ export default function AdminDashboard() {
           </View>
         </View>
 
-        {/* Reports Navigation Button */}
-        <TouchableOpacity
-          onPress={() => router.push("/admin/reports")}
-          style={{
-            backgroundColor: COLORS.card,
-            borderRadius: 14,
-            padding: 18,
-            marginBottom: 24,
-            borderWidth: 1,
-            borderColor: COLORS.border,
-            flexDirection: "row",
-            justifyContent: "space-between",
-            alignItems: "center",
-          }}
-        >
-          <Text style={{ fontSize: 16, fontWeight: "600", color: COLORS.text }}>
-            Reports লিস্ট
-          </Text>
-          <Text style={{ fontSize: 18, color: COLORS.primary }}>›</Text>
-        </TouchableOpacity>
-
-        {/* UUID Search */}
         <Text
           style={{
             fontSize: 16,
@@ -351,7 +330,6 @@ export default function AdminDashboard() {
         >
           ইউজার খুঁজো (UUID)
         </Text>
-
         <TextInput
           placeholder="UUID পেস্ট করো"
           placeholderTextColor={COLORS.textSecondary}
@@ -369,7 +347,6 @@ export default function AdminDashboard() {
             marginBottom: 12,
           }}
         />
-
         <TouchableOpacity
           onPress={searchUser}
           disabled={searching}
@@ -400,7 +377,9 @@ export default function AdminDashboard() {
               marginBottom: 20,
             }}
           >
-            <Text style={{ fontWeight: "700", color: COLORS.text, fontSize: 16 }}>
+            <Text
+              style={{ fontWeight: "700", color: COLORS.text, fontSize: 16 }}
+            >
               {foundUser.full_name || "No name"}
             </Text>
             <Text style={{ color: COLORS.textSecondary, marginTop: 6 }}>
@@ -413,7 +392,7 @@ export default function AdminDashboard() {
               Country: {foundUser.country_name || "N/A"}
             </Text>
             <Text style={{ color: COLORS.textSecondary, marginTop: 4 }}>
-              Device: {foundUser.device_id?.slice(0, 12) || "N/A"}...
+              Device: {foundUser.device_id?.slice(0, 14) || "N/A"}
             </Text>
             <Text
               style={{
@@ -462,15 +441,10 @@ export default function AdminDashboard() {
         )}
 
         <Text
-          style={{
-            color: COLORS.textSecondary,
-            fontSize: 12,
-            lineHeight: 18,
-          }}
+          style={{ color: COLORS.textSecondary, fontSize: 12, lineHeight: 18 }}
         >
-          • দেশের তথ্য শুধু Admin/Host দেখে{"\n"}
-          • ইউজারকে দেশ দেখানো হয় না{"\n"}
-          • Hard delete পরে service_role দিয়ে করা যাবে
+          • দেশ শুধু Admin দেখে — ইউজার UI তে নেই{"\n"}
+          • VPN বেস্ট-এফোর্ট + ১০ মিনিট ক্যাশ
         </Text>
       </ScrollView>
     </View>
