@@ -9,12 +9,8 @@ export default function ProfileScreen() {
 
   async function handleCopyUUID() {
     if (!profile?.id) return;
-
     try {
-      await Share.share({
-        message: profile.id,
-        title: "My UUID",
-      });
+      await Share.share({ message: profile.id, title: "My UUID" });
     } catch {
       Alert.alert("Your UUID", profile.id);
     }
