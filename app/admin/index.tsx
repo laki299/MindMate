@@ -20,8 +20,6 @@ export default function AdminDashboard() {
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
-
-  // User Search & Action States
   const [searchId, setSearchId] = useState("");
   const [foundUser, setFoundUser] = useState<Profile | null>(null);
   const [searching, setSearching] = useState(false);
@@ -66,15 +64,15 @@ export default function AdminDashboard() {
     Alert.alert(
       "সফল",
       value
-        ? "Monetization চালু করা হয়েছে। এখন থেকে Coin কাটা হবে।"
-        : "Monetization বন্ধ করা হয়েছে। এখন সব কথাবার্তা ফ্রি।"
+        ? "Monetization চালু — Coin কাটা হবে।"
+        : "Monetization বন্ধ — সব কথাবার্তা ফ্রি।"
     );
   }
 
-  // User Search Functionality
   async function searchUser() {
-    if (!searchId.trim()) {
-      Alert.alert("ত্রুটি", "দয়া করে একটি UUID লিখুন");
+    const id = searchId.trim();
+    if (!id) {
+      Alert.alert("Error", "UUID লিখো");
       return;
     }
 
@@ -82,68 +80,58 @@ export default function AdminDashboard() {
     const { data, error } = await supabase
       .from("profiles")
       .select("*")
-      .eq("id", searchId.trim())
+      .eq("id", id)
       .single();
-
     setSearching(false);
 
     if (error || !data) {
       setFoundUser(null);
-      Alert.alert("পাওয়া যায়নি", "এই UUID এর কোনো ইউজার পাওয়া যায়নি");
+      Alert.alert("পাওয়া যায়নি", "এই UUID এর ইউজার নেই");
       return;
     }
 
-    setFoundUser(data as Profile);
+    setFoundUser(data);
   }
 
-  // Ban / Unban User
-  async function toggleBanUser(userId: string, currentBanState?: boolean) {
-    const newBanState = !currentBanState;
-    const { error } = await supabase
-      .from("profiles")
-      .update({ is_banned: newBanState })
-      .eq("id", userId);
-
-    if (error) {
-      Alert.alert("Error", error.message);
-      return;
-    }
-
-    Alert.alert(
-      "সফল",
-      newBanState ? "ইউজার ব্যান করা হয়েছে" : "ইউজারের ব্যান তুলে নেওয়া হয়েছে"
-    );
-    setFoundUser((prev) => (prev ? { ...prev, is_banned: newBanState } : prev));
-  }
-
-  // Soft Delete / Block User
-  async function deleteUser(userId: string) {
-    Alert.alert("নিশ্চিত?", "অ্যাকাউন্ট নিষ্ক্রিয় এবং ব্লক করা হবে", [
+  async function banUser(id: string) {
+    Alert.alert("Ban?", "এই ইউজারকে ব্যান করবে?", [
       { text: "Cancel", style: "cancel" },
       {
-        text: "Delete & Block",
+        text: "Ban",
         style: "destructive",
         onPress: async () => {
           const { error } = await supabase
             .from("profiles")
-            .update({ is_banned: true, is_blocked: true })
-            .eq("id", userId);
+            .update({ is_banned: true })
+            .eq("id", id);
 
           if (error) {
             Alert.alert("Error", error.message);
             return;
           }
 
-          Alert.alert("সফল", "অ্যাকাউন্ট সম্পূর্ণ নিষ্ক্রিয় ও ব্লক করা হয়েছে");
-          setFoundUser((prev) =>
-            prev ? { ...prev, is_banned: true, is_blocked: true } : prev
-          );
+          setFoundUser((u) => (u ? { ...u, is_banned: true } : u));
+          Alert.alert("সফল", "ইউজার ব্যান করা হয়েছে");
         },
       },
     ]);
   }
 
-  // Admin Verification Access
+  async function unbanUser(id: string) {
+    const { error } = await supabase
+      .from("profiles")
+      .update({ is_banned: false })
+      .eq("id", id);
+
+    if (error) {
+      Alert.alert("Error", error.message);
+      return;
+    }
+
+    setFoundUser((u) => (u ? { ...u, is_banned: false } : u));
+    Alert.alert("সফল", "Ban তুলে নেওয়া হয়েছে");
+  }
+
   if (profile?.role !== "admin") {
     return (
       <View
@@ -158,8 +146,13 @@ export default function AdminDashboard() {
         <Text style={{ color: COLORS.textSecondary, textAlign: "center" }}>
           শুধুমাত্র Admin এই পেজ দেখতে পারবে
         </Text>
-        <TouchableOpacity onPress={() => router.back()} style={{ marginTop: 20 }}>
-          <Text style={{ color: COLORS.primary, fontWeight: "600" }}>ফিরে যাও</Text>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={{ marginTop: 20 }}
+        >
+          <Text style={{ color: COLORS.primary, fontWeight: "600" }}>
+            ফিরে যাও
+          </Text>
         </TouchableOpacity>
       </View>
     );
@@ -182,7 +175,6 @@ export default function AdminDashboard() {
 
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.background }}>
-      {/* Header */}
       <View
         style={{
           paddingTop: 50,
@@ -195,7 +187,10 @@ export default function AdminDashboard() {
           alignItems: "center",
         }}
       >
-        <TouchableOpacity onPress={() => router.back()} style={{ marginRight: 12 }}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={{ marginRight: 12 }}
+        >
           <Text style={{ fontSize: 24, color: COLORS.primary }}>‹</Text>
         </TouchableOpacity>
         <Text style={{ fontSize: 18, fontWeight: "600", color: COLORS.text }}>
@@ -204,7 +199,7 @@ export default function AdminDashboard() {
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 20 }}>
-        {/* Monetization Toggle */}
+        {/* Monetization */}
         <View
           style={{
             backgroundColor: COLORS.card,
@@ -223,13 +218,21 @@ export default function AdminDashboard() {
             }}
           >
             <View style={{ flex: 1, marginRight: 12 }}>
-              <Text style={{ fontSize: 16, fontWeight: "600", color: COLORS.text }}>
+              <Text
+                style={{ fontSize: 16, fontWeight: "600", color: COLORS.text }}
+              >
                 Monetization
               </Text>
-              <Text style={{ color: COLORS.textSecondary, fontSize: 13, marginTop: 4 }}>
+              <Text
+                style={{
+                  color: COLORS.textSecondary,
+                  fontSize: 13,
+                  marginTop: 4,
+                }}
+              >
                 {settings.monetization_enabled
-                  ? "চালু আছে — Coin কাটা হচ্ছে"
-                  : "বন্ধ আছে — সব কথাবার্তা ফ্রি"}
+                  ? "চালু — Coin কাটা হচ্ছে"
+                  : "বন্ধ — সব ফ্রি"}
               </Text>
             </View>
 
@@ -238,13 +241,22 @@ export default function AdminDashboard() {
               onValueChange={toggleMonetization}
               disabled={updating}
               trackColor={{ false: "#E2E8F0", true: COLORS.primaryLight }}
-              thumbColor={settings.monetization_enabled ? COLORS.primary : "#f4f3f4"}
+              thumbColor={
+                settings.monetization_enabled ? COLORS.primary : "#f4f3f4"
+              }
             />
           </View>
         </View>
 
-        {/* Current Rates */}
-        <Text style={{ fontSize: 16, fontWeight: "600", color: COLORS.text, marginBottom: 12 }}>
+        {/* Rates */}
+        <Text
+          style={{
+            fontSize: 16,
+            fontWeight: "600",
+            color: COLORS.text,
+            marginBottom: 12,
+          }}
+        >
           বর্তমান রেট
         </Text>
 
@@ -258,155 +270,186 @@ export default function AdminDashboard() {
             marginBottom: 24,
           }}
         >
-          <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 10 }}>
-            <Text style={{ color: COLORS.textSecondary }}>Text Message</Text>
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent: "space-between",
+              marginBottom: 10,
+            }}
+          >
+            <Text style={{ color: COLORS.textSecondary }}>Text</Text>
             <Text style={{ fontWeight: "600", color: COLORS.text }}>
               {settings.text_coin_cost} Coin
             </Text>
           </View>
-          <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 10 }}>
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent: "space-between",
+              marginBottom: 10,
+            }}
+          >
             <Text style={{ color: COLORS.textSecondary }}>Voice / sec</Text>
             <Text style={{ fontWeight: "600", color: COLORS.text }}>
               {settings.voice_coin_per_second} Coin
             </Text>
           </View>
-          <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 10 }}>
-            <Text style={{ color: COLORS.textSecondary }}>Audio Call / sec</Text>
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent: "space-between",
+              marginBottom: 10,
+            }}
+          >
+            <Text style={{ color: COLORS.textSecondary }}>Call / sec</Text>
             <Text style={{ fontWeight: "600", color: COLORS.text }}>
               {settings.call_coin_per_second} Coin
             </Text>
           </View>
-          <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 10 }}>
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent: "space-between",
+            }}
+          >
             <Text style={{ color: COLORS.textSecondary }}>Rewarded Ad</Text>
             <Text style={{ fontWeight: "600", color: COLORS.text }}>
               {settings.ad_reward_coins} Coin
             </Text>
           </View>
-          <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-            <Text style={{ color: COLORS.textSecondary }}>Ad Limit / hour</Text>
-            <Text style={{ fontWeight: "600", color: COLORS.text }}>
-              {settings.ad_limit_per_hour}
-            </Text>
-          </View>
         </View>
 
-        {/* User Search & Management Section */}
-        <Text style={{ fontSize: 16, fontWeight: "600", color: COLORS.text, marginBottom: 12 }}>
-          ইউজার ম্যানেজমেন্ট (UUID সার্চ)
-        </Text>
-
-        <View
+        {/* UUID Search */}
+        <Text
           style={{
-            backgroundColor: COLORS.card,
-            borderRadius: 16,
-            padding: 16,
-            marginBottom: 20,
-            borderWidth: 1,
-            borderColor: COLORS.border,
+            fontSize: 16,
+            fontWeight: "600",
+            color: COLORS.text,
+            marginBottom: 12,
           }}
         >
-          <View style={{ flexDirection: "row", gap: 10, marginBottom: 12 }}>
-            <TextInput
-              placeholder="UUID দিয়ে সার্চ করুন..."
-              placeholderTextColor={COLORS.textSecondary}
-              value={searchId}
-              onChangeText={setSearchId}
+          ইউজার খুঁজো (UUID)
+        </Text>
+
+        <TextInput
+          placeholder="UUID পেস্ট করো"
+          placeholderTextColor={COLORS.textSecondary}
+          value={searchId}
+          onChangeText={setSearchId}
+          autoCapitalize="none"
+          style={{
+            backgroundColor: COLORS.card,
+            borderRadius: 12,
+            padding: 14,
+            fontSize: 14,
+            borderWidth: 1,
+            borderColor: COLORS.border,
+            color: COLORS.text,
+            marginBottom: 12,
+          }}
+        />
+
+        <TouchableOpacity
+          onPress={searchUser}
+          disabled={searching}
+          style={{
+            backgroundColor: COLORS.primary,
+            borderRadius: 12,
+            padding: 14,
+            alignItems: "center",
+            marginBottom: 16,
+            opacity: searching ? 0.7 : 1,
+          }}
+        >
+          {searching ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={{ color: "#fff", fontWeight: "600" }}>সার্চ</Text>
+          )}
+        </TouchableOpacity>
+
+        {foundUser && (
+          <View
+            style={{
+              backgroundColor: COLORS.card,
+              borderRadius: 16,
+              padding: 16,
+              borderWidth: 1,
+              borderColor: COLORS.border,
+              marginBottom: 20,
+            }}
+          >
+            <Text style={{ fontWeight: "700", color: COLORS.text, fontSize: 16 }}>
+              {foundUser.full_name || "No name"}
+            </Text>
+            <Text style={{ color: COLORS.textSecondary, marginTop: 6 }}>
+              Role: {foundUser.role}
+            </Text>
+            <Text style={{ color: COLORS.textSecondary, marginTop: 4 }}>
+              Coins: {foundUser.coin_balance}
+            </Text>
+            <Text style={{ color: COLORS.textSecondary, marginTop: 4 }}>
+              Country: {foundUser.country_name || "N/A"}
+            </Text>
+            <Text style={{ color: COLORS.textSecondary, marginTop: 4 }}>
+              Device: {foundUser.device_id?.slice(0, 12) || "N/A"}...
+            </Text>
+            <Text
               style={{
-                flex: 1,
-                backgroundColor: COLORS.background,
-                borderWidth: 1,
-                borderColor: COLORS.border,
-                borderRadius: 10,
-                paddingHorizontal: 12,
-                paddingVertical: 10,
-                color: COLORS.text,
-                fontSize: 14,
-              }}
-            />
-            <TouchableOpacity
-              onPress={searchUser}
-              disabled={searching}
-              style={{
-                backgroundColor: COLORS.primary,
-                borderRadius: 10,
-                paddingHorizontal: 16,
-                justifyContent: "center",
-                alignItems: "center",
+                color: foundUser.is_banned ? COLORS.danger : COLORS.success,
+                marginTop: 4,
+                fontWeight: "600",
               }}
             >
-              {searching ? (
-                <ActivityIndicator size="small" color="#FFF" />
-              ) : (
-                <Text style={{ color: "#FFF", fontWeight: "600" }}>সার্চ</Text>
-              )}
-            </TouchableOpacity>
-          </View>
+              {foundUser.is_banned ? "BANNED" : "Active"}
+            </Text>
 
-          {/* Searched User Details */}
-          {foundUser && (
-            <View
-              style={{
-                marginTop: 12,
-                paddingTop: 12,
-                borderTopWidth: 1,
-                borderTopColor: COLORS.border,
-              }}
-            >
-              <Text style={{ fontSize: 16, fontWeight: "700", color: COLORS.text, marginBottom: 4 }}>
-                {foundUser.full_name || "Un-named User"}
-              </Text>
-              <Text style={{ color: COLORS.textSecondary, fontSize: 13, marginBottom: 2 }}>
-                দেশ: {foundUser.country_name || "N/A"} ({foundUser.country_code || "N/A"})
-              </Text>
-              <Text style={{ color: COLORS.textSecondary, fontSize: 13, marginBottom: 2 }}>
-                Role: {foundUser.role} | Balance: 🪙 {foundUser.coin_balance}
-              </Text>
-              <Text style={{ color: COLORS.textSecondary, fontSize: 13, marginBottom: 12 }}>
-                Status: {foundUser.is_banned ? "🔴 Banned" : "🟢 Active"}
-                {foundUser.is_blocked ? " (Blocked)" : ""}
-              </Text>
-
-              <View style={{ flexDirection: "row", gap: 10 }}>
+            <View style={{ flexDirection: "row", gap: 10, marginTop: 14 }}>
+              {foundUser.is_banned ? (
                 <TouchableOpacity
-                  onPress={() => toggleBanUser(foundUser.id, foundUser.is_banned)}
+                  onPress={() => unbanUser(foundUser.id)}
                   style={{
                     flex: 1,
-                    backgroundColor: foundUser.is_banned ? "#DC2626" : "#E11D48",
-                    paddingVertical: 10,
-                    borderRadius: 8,
+                    backgroundColor: "#D1FAE5",
+                    borderRadius: 10,
+                    padding: 12,
                     alignItems: "center",
                   }}
                 >
-                  <Text style={{ color: "#FFF", fontWeight: "600", fontSize: 13 }}>
-                    {foundUser.is_banned ? "Unban User" : "Ban User"}
+                  <Text style={{ color: COLORS.success, fontWeight: "600" }}>
+                    Unban
                   </Text>
                 </TouchableOpacity>
-
+              ) : (
                 <TouchableOpacity
-                  onPress={() => deleteUser(foundUser.id)}
+                  onPress={() => banUser(foundUser.id)}
                   style={{
                     flex: 1,
                     backgroundColor: "#FEE2E2",
-                    paddingVertical: 10,
-                    borderRadius: 8,
+                    borderRadius: 10,
+                    padding: 12,
                     alignItems: "center",
-                    borderWidth: 1,
-                    borderColor: COLORS.danger,
                   }}
                 >
-                  <Text style={{ color: COLORS.danger, fontWeight: "600", fontSize: 13 }}>
-                    Delete Account
+                  <Text style={{ color: COLORS.danger, fontWeight: "600" }}>
+                    Ban
                   </Text>
                 </TouchableOpacity>
-              </View>
+              )}
             </View>
-          )}
-        </View>
+          </View>
+        )}
 
-        <Text style={{ color: COLORS.textSecondary, fontSize: 13, lineHeight: 20 }}>
-          • Monetization OFF করলে সব User ফ্রিতে কথা বলতে পারবে{"\n"}
-          • রেট পরিবর্তন পরে Admin থেকে করা যাবে{"\n"}
-          • এই সেটিংস রিয়েল-টাইমে কাজ করবে (নতুন বিল্ড লাগবে না)
+        <Text
+          style={{
+            color: COLORS.textSecondary,
+            fontSize: 12,
+            lineHeight: 18,
+          }}
+        >
+          • দেশের তথ্য শুধু Admin/Host দেখে{"\n"}
+          • ইউজারকে দেশ দেখানো হয় না{"\n"}
+          • Hard delete পরে service_role দিয়ে করা যাবে
         </Text>
       </ScrollView>
     </View>
