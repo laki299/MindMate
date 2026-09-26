@@ -23,6 +23,11 @@ export interface Profile {
   bio: string | null;
   coin_balance: number;
   is_blocked: boolean;
+  is_banned?: boolean;
+  country_code?: string | null;
+  country_name?: string | null;
+  device_id?: string | null;
+  last_ip?: string | null;
   created_at: string;
   updated_at: string;
 }
