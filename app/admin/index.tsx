@@ -267,7 +267,7 @@ export default function AdminDashboard() {
             padding: 16,
             borderWidth: 1,
             borderColor: COLORS.border,
-            marginBottom: 24,
+            marginBottom: 20,
           }}
         >
           <View
@@ -318,6 +318,27 @@ export default function AdminDashboard() {
             </Text>
           </View>
         </View>
+
+        {/* Reports Navigation Button */}
+        <TouchableOpacity
+          onPress={() => router.push("/admin/reports")}
+          style={{
+            backgroundColor: COLORS.card,
+            borderRadius: 14,
+            padding: 18,
+            marginBottom: 24,
+            borderWidth: 1,
+            borderColor: COLORS.border,
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          <Text style={{ fontSize: 16, fontWeight: "600", color: COLORS.text }}>
+            Reports লিস্ট
+          </Text>
+          <Text style={{ fontSize: 18, color: COLORS.primary }}>›</Text>
+        </TouchableOpacity>
 
         {/* UUID Search */}
         <Text
