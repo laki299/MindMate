@@ -4,10 +4,31 @@ import { useAuthStore } from "../../stores/authStore";
 import { COLORS } from "../../lib/constants";
 
 const MENUS = [
-  { title: "অর্থনীতি / স্ট্যাটস", path: "/admin/stats", desc: "ইউজার, কয়েন, অ্যাড কাউন্ট" },
-  { title: "বিজ্ঞাপন সেটিংস", path: "/admin/ad-settings", desc: "কুলডাউন, লিমিট" },
-  { title: "Reports", path: "/admin/reports", desc: "ইউজার রিপোর্ট" },
-  { title: "Hosts আয়", path: "/admin/hosts", desc: "প্রতি হোস্টের কয়েন" },
+  {
+    title: "অর্থনীতি / স্ট্যাটস",
+    path: "/admin/stats",
+    desc: "ইউজার, কয়েন, অ্যাড কাউন্ট",
+  },
+  {
+    title: "বিজ্ঞাপন সেটিংস",
+    path: "/admin/ad-settings",
+    desc: "কুলডাউন, লিমিট, কয়েন রেট",
+  },
+  {
+    title: "Monetization ON/OFF",
+    path: "/admin/monetization",
+    desc: "ফ্রি মোড টগল",
+  },
+  {
+    title: "Reports",
+    path: "/admin/reports",
+    desc: "ইউজার রিপোর্ট",
+  },
+  {
+    title: "Hosts আয়",
+    path: "/admin/hosts",
+    desc: "প্রতি হোস্টের কয়েন",
+  },
 ];
 
 export default function AdminHome() {
@@ -15,9 +36,20 @@ export default function AdminHome() {
 
   if (profile?.role !== "admin") {
     return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: COLORS.background }}>
+      <View
+        style={{
+          flex: 1,
+          justifyContent: "center",
+          alignItems: "center",
+          backgroundColor: COLORS.background,
+          padding: 20,
+        }}
+      >
         <Text style={{ color: COLORS.textSecondary }}>শুধু Admin</Text>
-        <TouchableOpacity onPress={() => router.back()} style={{ marginTop: 16 }}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={{ marginTop: 16 }}
+        >
           <Text style={{ color: COLORS.primary }}>ফিরে যাও</Text>
         </TouchableOpacity>
       </View>
@@ -38,7 +70,10 @@ export default function AdminHome() {
           alignItems: "center",
         }}
       >
-        <TouchableOpacity onPress={() => router.back()} style={{ marginRight: 12 }}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={{ marginRight: 12 }}
+        >
           <Text style={{ fontSize: 24, color: COLORS.primary }}>‹</Text>
         </TouchableOpacity>
         <Text style={{ fontSize: 18, fontWeight: "600", color: COLORS.text }}>
@@ -60,19 +95,22 @@ export default function AdminHome() {
               borderColor: COLORS.border,
             }}
           >
-            <Text style={{ fontSize: 16, fontWeight: "600", color: COLORS.text }}>
+            <Text
+              style={{ fontSize: 16, fontWeight: "600", color: COLORS.text }}
+            >
               {m.title}
             </Text>
-            <Text style={{ color: COLORS.textSecondary, marginTop: 4, fontSize: 13 }}>
+            <Text
+              style={{
+                color: COLORS.textSecondary,
+                marginTop: 4,
+                fontSize: 13,
+              }}
+            >
               {m.desc}
             </Text>
           </TouchableOpacity>
         ))}
-
-        <TouchableOpacity
-          onPress={() => router.push("/admin/index" as any)}
-          style={{ display: "none" }}
-        />
       </ScrollView>
     </View>
   );
