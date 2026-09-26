@@ -13,7 +13,7 @@ import { Host } from "../../lib/types";
 import { COLORS } from "../../lib/constants";
 
 export default function HostHomeScreen() {
-  const { session, profile } = useAuthStore();
+  const { session } = useAuthStore();
   const [host, setHost] = useState<Host | null>(null);
   const [queueCount, setQueueCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -52,7 +52,12 @@ export default function HostHomeScreen() {
       )
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "hosts", filter: `id=eq.${session?.user.id}` },
+        {
+          event: "*",
+          schema: "public",
+          table: "hosts",
+          filter: `id=eq.${session?.user?.id}`,
+        },
         () => fetchHostData()
       )
       .subscribe();
@@ -82,7 +87,14 @@ export default function HostHomeScreen() {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: COLORS.background }}>
+      <View
+        style={{
+          flex: 1,
+          justifyContent: "center",
+          alignItems: "center",
+          backgroundColor: COLORS.background,
+        }}
+      >
         <ActivityIndicator size="large" color={COLORS.primary} />
       </View>
     );
@@ -90,8 +102,22 @@ export default function HostHomeScreen() {
 
   if (!host) {
     return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: COLORS.background, padding: 20 }}>
-        <Text style={{ color: COLORS.textSecondary, textAlign: "center", marginBottom: 16 }}>
+      <View
+        style={{
+          flex: 1,
+          justifyContent: "center",
+          alignItems: "center",
+          backgroundColor: COLORS.background,
+          padding: 20,
+        }}
+      >
+        <Text
+          style={{
+            color: COLORS.textSecondary,
+            textAlign: "center",
+            marginBottom: 16,
+          }}
+        >
           তুমি এখনো Host হিসেবে রেজিস্টারড নও।
         </Text>
         <Text style={{ color: COLORS.textSecondary, textAlign: "center" }}>
@@ -103,7 +129,6 @@ export default function HostHomeScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.background }}>
-      {/* Header */}
       <View
         style={{
           paddingTop: 60,
@@ -123,7 +148,6 @@ export default function HostHomeScreen() {
       </View>
 
       <View style={{ padding: 20 }}>
-        {/* Status Card */}
         <View
           style={{
             backgroundColor: COLORS.card,
@@ -134,8 +158,16 @@ export default function HostHomeScreen() {
             borderColor: COLORS.border,
           }}
         >
-          <Text style={{ color: COLORS.textSecondary, marginBottom: 8 }}>Current Status</Text>
-          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+          <Text style={{ color: COLORS.textSecondary, marginBottom: 8 }}>
+            Current Status
+          </Text>
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
             <View style={{ flexDirection: "row", alignItems: "center" }}>
               <View
                 style={{
@@ -151,7 +183,9 @@ export default function HostHomeScreen() {
                   marginRight: 8,
                 }}
               />
-              <Text style={{ fontSize: 18, fontWeight: "600", color: COLORS.text }}>
+              <Text
+                style={{ fontSize: 18, fontWeight: "600", color: COLORS.text }}
+              >
                 {host.status === "available"
                   ? "Available"
                   : host.status === "busy"
@@ -164,7 +198,8 @@ export default function HostHomeScreen() {
               <TouchableOpacity
                 onPress={toggleStatus}
                 style={{
-                  backgroundColor: host.status === "available" ? "#FEE2E2" : "#D1FAE5",
+                  backgroundColor:
+                    host.status === "available" ? "#FEE2E2" : "#D1FAE5",
                   paddingHorizontal: 14,
                   paddingVertical: 8,
                   borderRadius: 20,
@@ -173,7 +208,10 @@ export default function HostHomeScreen() {
                 <Text
                   style={{
                     fontWeight: "600",
-                    color: host.status === "available" ? COLORS.danger : COLORS.success,
+                    color:
+                      host.status === "available"
+                        ? COLORS.danger
+                        : COLORS.success,
                   }}
                 >
                   {host.status === "available" ? "Go Offline" : "Go Online"}
@@ -183,7 +221,6 @@ export default function HostHomeScreen() {
           </View>
         </View>
 
-        {/* Stats */}
         <View style={{ flexDirection: "row", gap: 12, marginBottom: 16 }}>
           <View
             style={{
@@ -195,8 +232,17 @@ export default function HostHomeScreen() {
               borderColor: COLORS.border,
             }}
           >
-            <Text style={{ color: COLORS.textSecondary, fontSize: 13 }}>Waiting</Text>
-            <Text style={{ fontSize: 28, fontWeight: "700", color: COLORS.primary, marginTop: 4 }}>
+            <Text style={{ color: COLORS.textSecondary, fontSize: 13 }}>
+              Waiting
+            </Text>
+            <Text
+              style={{
+                fontSize: 28,
+                fontWeight: "700",
+                color: COLORS.primary,
+                marginTop: 4,
+              }}
+            >
               {queueCount}
             </Text>
           </View>
@@ -211,14 +257,22 @@ export default function HostHomeScreen() {
               borderColor: COLORS.border,
             }}
           >
-            <Text style={{ color: COLORS.textSecondary, fontSize: 13 }}>Today's Earnings</Text>
-            <Text style={{ fontSize: 28, fontWeight: "700", color: COLORS.success, marginTop: 4 }}>
+            <Text style={{ color: COLORS.textSecondary, fontSize: 13 }}>
+              Total Earned
+            </Text>
+            <Text
+              style={{
+                fontSize: 28,
+                fontWeight: "700",
+                color: COLORS.success,
+                marginTop: 4,
+              }}
+            >
               {host.total_earned}
             </Text>
           </View>
         </View>
 
-        {/* Menu Buttons */}
         <TouchableOpacity
           onPress={() => router.push("/host/queue")}
           style={{
@@ -235,6 +289,26 @@ export default function HostHomeScreen() {
         >
           <Text style={{ fontSize: 16, fontWeight: "600", color: COLORS.text }}>
             View Queue
+          </Text>
+          <Text style={{ fontSize: 18, color: COLORS.primary }}>›</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={() => router.push("/host/gifts")}
+          style={{
+            backgroundColor: COLORS.card,
+            borderRadius: 14,
+            padding: 18,
+            marginBottom: 12,
+            borderWidth: 1,
+            borderColor: COLORS.border,
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          <Text style={{ fontSize: 16, fontWeight: "600", color: COLORS.text }}>
+            Gift List
           </Text>
           <Text style={{ fontSize: 18, color: COLORS.primary }}>›</Text>
         </TouchableOpacity>
