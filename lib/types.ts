@@ -93,6 +93,21 @@ export interface AppSettings {
   short_video_limit_per_hour?: number;
   offerwall_coins_per_cent?: number;
   monetization_enabled: boolean;
+  ad_max_per_minute?: number;
+  ad_max_consecutive?: number;
+  ad_batch_cooldown_minutes?: number;
+  short_video_max_per_minute?: number;
+  short_video_max_consecutive?: number;
+  short_video_batch_cooldown_minutes?: number;
+}
+
+export interface AppStats {
+  id: number;
+  total_ads_watched: number;
+  total_short_videos_watched: number;
+  total_coins_minted: number;
+  total_coins_withdrawn: number;
+  updated_at: string;
 }
 
 export type Database = {
@@ -127,6 +142,11 @@ export type Database = {
         Row: AppSettings;
         Insert: Partial<AppSettings>;
         Update: Partial<AppSettings>;
+      };
+      app_stats: {
+        Row: AppStats;
+        Insert: Partial<AppStats>;
+        Update: Partial<AppStats>;
       };
     };
   };
