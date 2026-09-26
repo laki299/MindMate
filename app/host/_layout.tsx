@@ -7,6 +7,7 @@ export default function HostLayout() {
       <Stack.Screen name="queue" />
       <Stack.Screen name="earnings" />
       <Stack.Screen name="services" />
+      <Stack.Screen name="gifts" />
     </Stack>
   );
 }
