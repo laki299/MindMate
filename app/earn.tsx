@@ -1,37 +1,42 @@
-import React, { useState, useEffect } from "react";
-import { View, Text, TouchableOpacity, Alert, ScrollView, ActivityIndicator } from "react-native";
+import { useEffect, useState } from "react";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  ScrollView,
+  ActivityIndicator,
+  Alert,
+} from "react-native";
 import { router } from "expo-router";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useAuthStore } from "../stores/authStore";
-import { COLORS, COIN_RATES } from "../lib/constants";
 import { supabase } from "../lib/supabase";
+import { useAuthStore } from "../stores/authStore";
 import { AppSettings } from "../lib/types";
-
-// AsyncStorage Keys
-const STORAGE_KEYS = {
-  LAST_AD_AT: "last_ad_at",
-  AD_STREAK: "ad_streak",
-  AD_BLOCKED_UNTIL: "ad_batch_blocked_until",
-};
+import { COLORS, COIN_RATES } from "../lib/constants";
+import {
+  canWatchAd,
+  recordAdWatch,
+  canWatchShortVideo,
+  recordShortVideoWatch,
+} from "../lib/adLimits";
 
 export default function EarnScreen() {
-  const { profile, fetchProfile } = useAuthStore();
+  const { profile, setProfile } = useAuthStore();
   const [settings, setSettings] = useState<AppSettings | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    loadSettings();
+    (async () => {
+      const { data } = await supabase
+        .from("app_settings")
+        .select("*")
+        .eq("id", 1)
+        .single();
+      if (data) setSettings(data);
+      setLoading(false);
+    })();
   }, []);
 
-  // ডাটাবেজ থেকে সেটিং লোড করা
-  async function loadSettings() {
-    const { data } = await supabase.from("app_settings").select("*").eq("id", 1).single();
-    if (data) {
-      setSettings(data);
-    }
-  }
-
-  // হোস্ট বা অ্যাডমিন হলে স্ক্রিন ব্লক
   if (profile?.role === "host" || profile?.role === "admin") {
     return (
       <View
@@ -39,115 +44,118 @@ export default function EarnScreen() {
           flex: 1,
           justifyContent: "center",
           alignItems: "center",
-          padding: 24,
           backgroundColor: COLORS.background,
+          padding: 24,
         }}
       >
-        <Text style={{ color: COLORS.textSecondary, textAlign: "center", fontSize: 15, lineHeight: 22 }}>
-          হোস্ট/অ্যাডমিন কয়েন জমা (অ্যাড) করতে পারে না।{"\n"}
+        <Text style={{ color: COLORS.textSecondary, textAlign: "center" }}>
+          হোস্ট/অ্যাডমিন অ্যাড দিয়ে কয়েন জমা করতে পারে না।{"\n"}
           হোস্ট শুধু ইউজার থেকে আয় করে।
         </Text>
-        <TouchableOpacity onPress={() => router.back()} style={{ marginTop: 20 }}>
-          <Text style={{ color: COLORS.primary, fontWeight: "600", fontSize: 16 }}>ফিরে যাও</Text>
+        <TouchableOpacity onPress={() => router.back()} style={{ marginTop: 16 }}>
+          <Text style={{ color: COLORS.primary, fontWeight: "600" }}>
+            ফিরে যাও
+          </Text>
         </TouchableOpacity>
       </View>
     );
   }
 
-  // কুলডাউন চেক ফাংশন
-  async function checkAdCooldown(): Promise<boolean> {
-    const now = Date.now();
-    const blockedUntilStr = await AsyncStorage.getItem(STORAGE_KEYS.AD_BLOCKED_UNTIL);
+  const adCoins = settings?.ad_reward_coins ?? COIN_RATES.AD_REWARD;
+  const svCoins = settings?.short_video_coins ?? COIN_RATES.SHORT_VIDEO;
 
-    if (blockedUntilStr) {
-      const blockedUntil = parseInt(blockedUntilStr, 10);
-      if (now < blockedUntil) {
-        const remainingMinutes = Math.ceil((blockedUntil - now) / (1000 * 60));
-        Alert.alert(
-          "কুলডাউন চলছে",
-          `আপনি পরপর বেশ কয়েকটি এড দেখেছেন। অনুগ্রহ করে ${remainingMinutes} মিনিট পর আবার চেষ্টা করুন।`
-        );
-        return false;
-      } else {
-        // কুলডাউন সময় শেষ হলে ক্লিয়ার
-        await AsyncStorage.removeItem(STORAGE_KEYS.AD_BLOCKED_UNTIL);
-        await AsyncStorage.setItem(STORAGE_KEYS.AD_STREAK, "0");
-      }
-    }
-    return true;
-  }
+  const adCfg = {
+    maxPerMinute: settings?.ad_max_per_minute ?? 1,
+    maxConsecutive: settings?.ad_max_consecutive ?? 5,
+    batchCooldownMinutes: settings?.ad_batch_cooldown_minutes ?? 10,
+  };
 
-  // এড দেখার পর লোকাল স্টোরেজ আপডেট
-  async function registerAdWatch() {
-    const now = Date.now();
-    const streakStr = (await AsyncStorage.getItem(STORAGE_KEYS.AD_STREAK)) || "0";
-    const currentStreak = parseInt(streakStr, 10) + 1;
+  const svCfg = {
+    maxPerMinute: settings?.short_video_max_per_minute ?? 1,
+    maxConsecutive: settings?.short_video_max_consecutive ?? 5,
+    batchCooldownMinutes: settings?.short_video_batch_cooldown_minutes ?? 10,
+  };
 
-    const maxConsecutive = settings?.ad_max_consecutive ?? 5;
-    const cooldownMinutes = settings?.ad_batch_cooldown_minutes ?? 10;
+  async function grantCoins(amount: number, type: "ad_reward" | "short_video") {
+    if (!profile) return;
 
-    if (currentStreak >= maxConsecutive) {
-      const blockedUntil = now + cooldownMinutes * 60 * 1000;
-      await AsyncStorage.setItem(STORAGE_KEYS.AD_BLOCKED_UNTIL, blockedUntil.toString());
-      await AsyncStorage.setItem(STORAGE_KEYS.AD_STREAK, "0");
+    const { error } = await supabase
+      .from("profiles")
+      .update({ coin_balance: profile.coin_balance + amount })
+      .eq("id", profile.id);
+
+    if (error) throw error;
+
+    setProfile({ ...profile, coin_balance: profile.coin_balance + amount });
+
+    if (type === "ad_reward") {
+      await supabase.rpc("increment_ad_watch");
     } else {
-      await AsyncStorage.setItem(STORAGE_KEYS.AD_STREAK, currentStreak.toString());
+      await supabase.rpc("increment_short_video_watch");
     }
-
-    await AsyncStorage.setItem(STORAGE_KEYS.LAST_AD_AT, now.toString());
   }
 
-  // Rewarded Ad হ্যান্ডলার
-  async function handleRewardedAd() {
-    const canWatch = await checkAdCooldown();
-    if (!canWatch) return;
+  async function onRewardedAd() {
+    const check = await canWatchAd(adCfg);
+    if (!check.ok) {
+      Alert.alert("অপেক্ষা করো", check.reason);
+      return;
+    }
 
-    setLoading(true);
-
+    setBusy(true);
     try {
-      // TODO: AppLovin MAX / AdMob SDK Implementation
-      // এড সফলভাবে দেখা সম্পন্ন হলে:
-      const { error } = await supabase.rpc("increment_ad_watch");
-
-      if (error) throw error;
-
-      await registerAdWatch();
-      await fetchProfile(); // প্রোফাইলের রিফ্রেশ করে নতুন কয়েন ব্যালেন্স আনা
-
-      Alert.alert("অভিনন্দন!", `আপনি ${settings?.ad_reward_coins ?? COIN_RATES.AD_REWARD} Coins অর্জন করেছেন!`);
-    } catch (err: any) {
-      Alert.alert("ত্রুটি", err.message || "কয়েন যোগ করতে সমস্যা হয়েছে।");
-    } finally {
-      setLoading(false);
+      // পরে AppLovin MAX এখানে বসবে — এখন সিমুলেশন
+      await grantCoins(adCoins, "ad_reward");
+      await recordAdWatch(adCfg);
+      Alert.alert("সফল", `${adCoins} Coin যোগ হয়েছে`);
+    } catch (e: any) {
+      Alert.alert("Error", e.message || "ব্যর্থ");
     }
+    setBusy(false);
   }
 
-  // Short Video হ্যান্ডলার
-  async function handleShortVideo() {
-    setLoading(true);
+  async function onShortVideo() {
+    const check = await canWatchShortVideo(svCfg);
+    if (!check.ok) {
+      Alert.alert("অপেক্ষা করো", check.reason);
+      return;
+    }
+
+    setBusy(true);
     try {
-      const { error } = await supabase.rpc("increment_short_video_watch");
-      if (error) throw error;
-
-      await fetchProfile();
-      Alert.alert("অভিনন্দন!", `আপনি ${settings?.short_video_coins ?? COIN_RATES.SHORT_VIDEO} Coins অর্জন করেছেন!`);
-    } catch (err: any) {
-      Alert.alert("ত্রুটি", err.message || "ভিডিও পয়েন্ট যোগ হতে সমস্যা হয়েছে।");
-    } finally {
-      setLoading(false);
+      await grantCoins(svCoins, "short_video");
+      await recordShortVideoWatch(svCfg);
+      Alert.alert("সফল", `${svCoins} Coin যোগ হয়েছে`);
+    } catch (e: any) {
+      Alert.alert("Error", e.message || "ব্যর্থ");
     }
+    setBusy(false);
   }
 
-  function handleOfferwall() {
+  function onOfferwall() {
     Alert.alert(
-      "Offerwall",
-      `প্রতি Cent-এ পাবে ${settings?.offerwall_coins_per_cent ?? COIN_RATES.OFFERWALL_PER_CENT} Coins\n\nPostback অনুযায়ী Coin যোগ হবে।\n\nশীঘ্রই চালু হবে।`
+      "শীঘ্রই",
+      "Offerwall অ্যাপ রিলিজের পর চালু হবে। রেট Admin নির্ধারণ করে।"
+    );
+  }
+
+  if (loading) {
+    return (
+      <View
+        style={{
+          flex: 1,
+          justifyContent: "center",
+          alignItems: "center",
+          backgroundColor: COLORS.background,
+        }}
+      >
+        <ActivityIndicator size="large" color={COLORS.primary} />
+      </View>
     );
   }
 
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.background }}>
-      {/* Header */}
       <View
         style={{
           paddingTop: 50,
@@ -160,7 +168,10 @@ export default function EarnScreen() {
           alignItems: "center",
         }}
       >
-        <TouchableOpacity onPress={() => router.back()} style={{ marginRight: 12 }}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={{ marginRight: 12 }}
+        >
           <Text style={{ fontSize: 24, color: COLORS.primary }}>‹</Text>
         </TouchableOpacity>
         <Text style={{ fontSize: 18, fontWeight: "600", color: COLORS.text }}>
@@ -169,163 +180,81 @@ export default function EarnScreen() {
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 20 }}>
-        {/* Balance Card */}
-        <View
-          style={{
-            backgroundColor: COLORS.primary,
-            borderRadius: 20,
-            padding: 24,
-            alignItems: "center",
-            marginBottom: 28,
-          }}
-        >
-          <Text style={{ color: "#E9D5FF", fontSize: 14 }}>বর্তমান ব্যালেন্স</Text>
-          <Text style={{ color: "#fff", fontSize: 36, fontWeight: "700", marginTop: 6 }}>
-            🪙 {profile?.coin_balance ?? 0}
-          </Text>
-        </View>
-
-        <Text style={{ fontSize: 16, fontWeight: "600", color: COLORS.text, marginBottom: 16 }}>
-          কয়েন সংগ্রহের উপায়
+        <Text style={{ color: COLORS.textSecondary, marginBottom: 16 }}>
+          ব্যালেন্স: 🪙 {profile?.coin_balance ?? 0}
         </Text>
 
-        {/* Rewarded Ad */}
-        <TouchableOpacity
-          onPress={handleRewardedAd}
-          disabled={loading}
-          style={{
-            backgroundColor: COLORS.card,
-            borderRadius: 16,
-            padding: 18,
-            marginBottom: 14,
-            borderWidth: 1,
-            borderColor: COLORS.border,
-            flexDirection: "row",
-            alignItems: "center",
-            opacity: loading ? 0.6 : 1,
-          }}
-        >
-          <View
-            style={{
-              width: 48,
-              height: 48,
-              borderRadius: 14,
-              backgroundColor: "#EDE9FE",
-              justifyContent: "center",
-              alignItems: "center",
-              marginRight: 14,
-            }}
-          >
-            <Text style={{ fontSize: 24 }}>🎬</Text>
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 16, fontWeight: "600", color: COLORS.text }}>
-              Rewarded বিজ্ঞাপন দেখুন
-            </Text>
-            <Text style={{ color: COLORS.textSecondary, fontSize: 13, marginTop: 2 }}>
-              {settings?.ad_reward_coins ?? COIN_RATES.AD_REWARD} Coins • আড়াই মিনিটে ১টা
-            </Text>
-          </View>
-          {loading ? (
-            <ActivityIndicator color={COLORS.primary} />
-          ) : (
-            <Text style={{ fontSize: 18, color: COLORS.primary }}>›</Text>
-          )}
-        </TouchableOpacity>
+        <EarnCard
+          title="রিওয়ার্ডেড বিজ্ঞাপন"
+          subtitle={`${adCoins} Coin · মিনিটে ${adCfg.maxPerMinute}টি · টানা ${adCfg.maxConsecutive}টির পর ${adCfg.batchCooldownMinutes} মিনিট কুলডাউন`}
+          onPress={onRewardedAd}
+          disabled={busy}
+        />
 
-        {/* Short Video */}
-        <TouchableOpacity
-          onPress={handleShortVideo}
-          disabled={loading}
-          style={{
-            backgroundColor: COLORS.card,
-            borderRadius: 16,
-            padding: 18,
-            marginBottom: 14,
-            borderWidth: 1,
-            borderColor: COLORS.border,
-            flexDirection: "row",
-            alignItems: "center",
-            opacity: loading ? 0.6 : 1,
-          }}
-        >
-          <View
-            style={{
-              width: 48,
-              height: 48,
-              borderRadius: 14,
-              backgroundColor: "#FEF3C7",
-              justifyContent: "center",
-              alignItems: "center",
-              marginRight: 14,
-            }}
-          >
-            <Text style={{ fontSize: 24 }}>📱</Text>
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 16, fontWeight: "600", color: COLORS.text }}>
-              Short Video দেখুন
-            </Text>
-            <Text style={{ color: COLORS.textSecondary, fontSize: 13, marginTop: 2 }}>
-              {settings?.short_video_coins ?? COIN_RATES.SHORT_VIDEO} Coins • ঘণ্টায় ১০টা
-            </Text>
-          </View>
-          <Text style={{ fontSize: 18, color: COLORS.primary }}>›</Text>
-        </TouchableOpacity>
+        <EarnCard
+          title="শর্ট ভিডিও"
+          subtitle={`${svCoins} Coin · মিনিটে ${svCfg.maxPerMinute}টি · টানা ${svCfg.maxConsecutive}টির পর ${svCfg.batchCooldownMinutes} মিনিট কুলডাউন`}
+          onPress={onShortVideo}
+          disabled={busy}
+        />
 
-        {/* Offerwall */}
-        <TouchableOpacity
-          onPress={handleOfferwall}
-          style={{
-            backgroundColor: COLORS.card,
-            borderRadius: 16,
-            padding: 18,
-            marginBottom: 14,
-            borderWidth: 1,
-            borderColor: COLORS.border,
-            flexDirection: "row",
-            alignItems: "center",
-          }}
-        >
-          <View
-            style={{
-              width: 48,
-              height: 48,
-              borderRadius: 14,
-              backgroundColor: "#D1FAE5",
-              justifyContent: "center",
-              alignItems: "center",
-              marginRight: 14,
-            }}
-          >
-            <Text style={{ fontSize: 24 }}>🎁</Text>
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 16, fontWeight: "600", color: COLORS.text }}>
-              Offerwall
-            </Text>
-            <Text style={{ color: COLORS.textSecondary, fontSize: 13, marginTop: 2 }}>
-              {settings?.offerwall_coins_per_cent ?? COIN_RATES.OFFERWALL_PER_CENT} Coins / Cent
-            </Text>
-          </View>
-          <Text style={{ fontSize: 18, color: COLORS.primary }}>›</Text>
-        </TouchableOpacity>
+        <EarnCard
+          title="অফার ওয়াল"
+          subtitle="পোস্টব্যাক অনুযায়ী · শীঘ্রই"
+          onPress={onOfferwall}
+          disabled={busy}
+        />
 
-        <View
+        <Text
           style={{
-            backgroundColor: "#F1F5F9",
-            borderRadius: 12,
-            padding: 14,
-            marginTop: 10,
+            color: COLORS.textSecondary,
+            fontSize: 12,
+            marginTop: 12,
+            lineHeight: 18,
           }}
         >
-          <Text style={{ color: COLORS.textSecondary, fontSize: 13, lineHeight: 20 }}>
-            • সব রেট Admin পরিবর্তন করতে পারবে{"\n"}
-            • Coin রিয়েল-টাইমে যোগ হবে{"\n"}
-            • অ্যাপ প্রকাশের পর Ad ও Offerwall চালু করা হবে
-          </Text>
-        </View>
+          • লিমিট Admin প্যানেল থেকে বদলাতে পারবে{"\n"}
+          • আসল অ্যাড SDK ল্যাপটপ বিল্ডে যোগ হবে{"\n"}
+          • এখন টেস্ট মোডে কয়েন সিমুলেট হয়
+        </Text>
       </ScrollView>
     </View>
   );
- }
+}
+
+function EarnCard({
+  title,
+  subtitle,
+  onPress,
+  disabled,
+}: {
+  title: string;
+  subtitle: string;
+  onPress: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      disabled={disabled}
+      style={{
+        backgroundColor: COLORS.card,
+        borderRadius: 14,
+        padding: 18,
+        marginBottom: 12,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        opacity: disabled ? 0.6 : 1,
+      }}
+    >
+      <Text style={{ fontSize: 16, fontWeight: "600", color: COLORS.text }}>
+        {title}
+      </Text>
+      <Text
+        style={{ color: COLORS.textSecondary, marginTop: 6, fontSize: 13 }}
+      >
+        {subtitle}
+      </Text>
+    </TouchableOpacity>
+  );
+}
