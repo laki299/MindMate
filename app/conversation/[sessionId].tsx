@@ -199,10 +199,10 @@ export default function ConversationScreen() {
           const { error } = await supabase.from("user_blocks").insert({
             host_id: authSession.user.id,
             user_id: otherUserId,
-            reason: "Blocked by host",
+            reason: "Blocked by host in conversation",
           });
 
-          if (error) {
+          if (error && error.code !== "23505") {
             Alert.alert("Error", error.message);
             return;
           }
@@ -281,7 +281,7 @@ export default function ConversationScreen() {
       <View
         style={{
           paddingTop: 50,
-          paddingHorizontal: 16,
+          paddingHorizontal: 12,
           paddingBottom: 12,
           backgroundColor: COLORS.card,
           borderBottomWidth: 1,
@@ -295,9 +295,9 @@ export default function ConversationScreen() {
           <Text style={{ fontSize: 24, color: COLORS.primary }}>‹</Text>
         </TouchableOpacity>
 
-        <View style={{ alignItems: "center" }}>
+        <View style={{ alignItems: "center", flex: 1 }}>
           <Text
-            style={{ fontSize: 17, fontWeight: "600", color: COLORS.text }}
+            style={{ fontSize: 16, fontWeight: "600", color: COLORS.text }}
           >
             Conversation
           </Text>
@@ -308,10 +308,19 @@ export default function ConversationScreen() {
           )}
         </View>
 
-        <View style={{ flexDirection: "row", gap: 10, alignItems: "center" }}>
+        <View
+          style={{
+            flexDirection: "row",
+            gap: 8,
+            alignItems: "center",
+            flexWrap: "wrap",
+            justifyContent: "flex-end",
+            maxWidth: 160,
+          }}
+        >
           {!isHost && (
             <TouchableOpacity onPress={() => setGiftVisible(true)}>
-              <Text style={{ color: COLORS.primary, fontWeight: "600" }}>
+              <Text style={{ color: COLORS.primary, fontWeight: "600", fontSize: 13 }}>
                 Gift
               </Text>
             </TouchableOpacity>
@@ -319,19 +328,21 @@ export default function ConversationScreen() {
           {isHost && (
             <>
               <TouchableOpacity onPress={handleBlock}>
-                <Text style={{ color: COLORS.danger, fontWeight: "600" }}>
+                <Text style={{ color: COLORS.danger, fontWeight: "600", fontSize: 13 }}>
                   Block
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={() => setReportVisible(true)}>
-                <Text style={{ color: COLORS.warning, fontWeight: "600" }}>
+                <Text style={{ color: COLORS.warning, fontWeight: "600", fontSize: 13 }}>
                   Report
                 </Text>
               </TouchableOpacity>
             </>
           )}
           <TouchableOpacity onPress={handleEndConversation}>
-            <Text style={{ color: COLORS.danger, fontWeight: "600" }}>End</Text>
+            <Text style={{ color: COLORS.danger, fontWeight: "600", fontSize: 13 }}>
+              End
+            </Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -448,7 +459,6 @@ export default function ConversationScreen() {
             <Text style={{ color: COLORS.textSecondary, marginBottom: 16 }}>
               তোমার ব্যালেন্স: 🪙 {profile?.coin_balance ?? 0}
             </Text>
-
             <TextInput
               placeholder="কত Coin Gift করবে?"
               placeholderTextColor={COLORS.textSecondary}
@@ -466,7 +476,6 @@ export default function ConversationScreen() {
                 marginBottom: 16,
               }}
             />
-
             <View style={{ flexDirection: "row", gap: 12 }}>
               <TouchableOpacity
                 onPress={() => {
@@ -485,7 +494,6 @@ export default function ConversationScreen() {
                   Cancel
                 </Text>
               </TouchableOpacity>
-
               <TouchableOpacity
                 onPress={handleGift}
                 style={{
@@ -535,7 +543,6 @@ export default function ConversationScreen() {
             <Text style={{ color: COLORS.textSecondary, marginBottom: 12 }}>
               কয়েক লাইনে সমস্যা লিখো
             </Text>
-
             <TextInput
               placeholder="রিপোর্টের কারণ..."
               placeholderTextColor={COLORS.textSecondary}
@@ -556,7 +563,6 @@ export default function ConversationScreen() {
                 textAlignVertical: "top",
               }}
             />
-
             <View style={{ flexDirection: "row", gap: 12 }}>
               <TouchableOpacity
                 onPress={() => {
@@ -575,7 +581,6 @@ export default function ConversationScreen() {
                   Cancel
                 </Text>
               </TouchableOpacity>
-
               <TouchableOpacity
                 onPress={handleReport}
                 style={{
