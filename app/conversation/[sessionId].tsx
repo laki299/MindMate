@@ -26,6 +26,7 @@ export default function ConversationScreen() {
   const [sending, setSending] = useState(false);
   const [currentSession, setCurrentSession] = useState<Session | null>(null);
   const [settings, setSettings] = useState<AppSettings | null>(null);
+  const [hostRates, setHostRates] = useState<{ text_rate: number; call_rate: number } | null>(null);
   const [giftVisible, setGiftVisible] = useState(false);
   const [giftAmount, setGiftAmount] = useState("");
   const [reportVisible, setReportVisible] = useState(false);
@@ -34,7 +35,7 @@ export default function ConversationScreen() {
 
   const isMonetizationOn = settings?.monetization_enabled ?? true;
   const textCost = isMonetizationOn
-    ? settings?.text_coin_cost ?? COIN_RATES.TEXT
+    ? hostRates?.text_rate ?? settings?.text_coin_cost ?? COIN_RATES.TEXT
     : 0;
 
   const isHost =
@@ -61,7 +62,16 @@ export default function ConversationScreen() {
       supabase.from("app_settings").select("*").eq("id", 1).single(),
     ]);
 
-    if (sessionRes.data) setCurrentSession(sessionRes.data);
+    if (sessionRes.data) {
+      setCurrentSession(sessionRes.data);
+      const { data: hostData } = await supabase
+        .from("hosts")
+        .select("text_rate, call_rate")
+        .eq("id", sessionRes.data.host_id)
+        .single();
+      if (hostData) setHostRates(hostData);
+    }
+
     if (messagesRes.data) setMessages(messagesRes.data);
     if (settingsRes.data) setSettings(settingsRes.data);
     setLoading(false);
@@ -601,4 +611,4 @@ export default function ConversationScreen() {
       </Modal>
     </KeyboardAvoidingView>
   );
-}
+ }
