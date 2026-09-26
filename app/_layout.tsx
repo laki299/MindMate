@@ -50,16 +50,22 @@ export default function RootLayout() {
         Alert.alert("ব্যান", "তোমার অ্যাকাউন্ট ব্যান করা হয়েছে।");
         return;
       }
+
       setProfile(data);
 
-      const net = await checkNetworkAndCountry(userId);
-      if (net.vpnSuspected) {
-        Alert.alert(
-          "VPN সনাক্ত",
-          "অ্যাপ ব্যবহার করতে VPN বন্ধ করুন। তারপর আবার চেষ্টা করুন।"
-        );
+      try {
+        const net = await checkNetworkAndCountry(userId);
+        if (net.vpnSuspected) {
+          Alert.alert(
+            "VPN সনাক্ত",
+            "অ্যাপ ব্যবহার করতে VPN বন্ধ করুন। তারপর আবার চেষ্টা করুন।"
+          );
+        }
+      } catch {
+        // ignore network errors
       }
     }
+
     setLoading(false);
   }
 
