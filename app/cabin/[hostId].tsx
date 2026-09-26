@@ -221,6 +221,28 @@ export default function CabinScreen() {
           )}
         </View>
 
+        {/* Host Rates */}
+        <View
+          style={{
+            backgroundColor: COLORS.card,
+            borderRadius: 14,
+            padding: 14,
+            marginBottom: 16,
+            borderWidth: 1,
+            borderColor: COLORS.border,
+          }}
+        >
+          <Text style={{ fontWeight: "600", color: COLORS.text, marginBottom: 8 }}>
+            রেট
+          </Text>
+          <Text style={{ color: COLORS.textSecondary }}>
+            💬 Text: {host.text_rate ?? 2} Coin / মেসেজ
+          </Text>
+          <Text style={{ color: COLORS.textSecondary, marginTop: 4 }}>
+            📞 Call: {host.call_rate ?? 2} Coin / সেকেন্ড
+          </Text>
+        </View>
+
         {/* Queue */}
         <View
           style={{
@@ -300,4 +322,4 @@ export default function CabinScreen() {
       </ScrollView>
     </View>
   );
-  
+ }
