@@ -12,6 +12,7 @@ import {
 import { Link, router } from "expo-router";
 import { supabase } from "../../lib/supabase";
 import { COLORS } from "../../lib/constants";
+import { saveDeviceIdToProfile } from "../../lib/device";
 
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
@@ -25,17 +26,22 @@ export default function LoginScreen() {
     }
 
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email: email.trim(),
       password,
     });
-    setLoading(false);
 
     if (error) {
+      setLoading(false);
       Alert.alert("Login Failed", error.message);
       return;
     }
 
+    if (data?.user) {
+      await saveDeviceIdToProfile(data.user.id);
+    }
+
+    setLoading(false);
     router.replace("/");
   }
 
