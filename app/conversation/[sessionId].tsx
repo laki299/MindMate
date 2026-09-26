@@ -16,6 +16,8 @@ import { supabase } from "../../lib/supabase";
 import { useAuthStore } from "../../stores/authStore";
 import { Message, Session, AppSettings } from "../../lib/types";
 import { COLORS, COIN_RATES } from "../../lib/constants";
+import { CallService } from "../../services/callService";
+import { startCallBilling } from "../../services/callBilling";
 
 export default function ConversationScreen() {
   const { sessionId } = useLocalSearchParams<{ sessionId: string }>();
@@ -31,11 +33,22 @@ export default function ConversationScreen() {
   const [giftAmount, setGiftAmount] = useState("");
   const [reportVisible, setReportVisible] = useState(false);
   const [reportText, setReportText] = useState("");
+
+  // Voice Call States & Refs
+  const [inCall, setInCall] = useState(false);
+  const [muted, setMuted] = useState(false);
+  const callRef = useRef<CallService | null>(null);
+  const stopBillingRef = useRef<(() => void) | null>(null);
+
   const flatListRef = useRef<FlatList>(null);
 
   const isMonetizationOn = settings?.monetization_enabled ?? true;
   const textCost = isMonetizationOn
     ? hostRates?.text_rate ?? settings?.text_coin_cost ?? COIN_RATES.TEXT
+    : 0;
+
+  const callRate = isMonetizationOn
+    ? hostRates?.call_rate ?? settings?.call_coin_per_second ?? COIN_RATES.CALL_PER_SEC ?? 2
     : 0;
 
   const isHost =
@@ -100,6 +113,69 @@ export default function ConversationScreen() {
       supabase.removeChannel(channel);
     };
   }, [sessionId]);
+
+  // Call/Billing Cleanup on Unmount
+  useEffect(() => {
+    return () => {
+      stopBillingRef.current?.();
+      callRef.current?.end("unmount");
+    };
+  }, []);
+
+  async function startCall() {
+    if (!authSession?.user || !currentSession) return;
+    if (!hostRates && isMonetizationOn) {
+      Alert.alert("অপেক্ষা", "রেট লোড হচ্ছে");
+      return;
+    }
+
+    const isCaller = authSession.user.id === currentSession.user_id;
+
+    const svc = new CallService(
+      sessionId!,
+      authSession.user.id,
+      isCaller,
+      {
+        onEnded: () => {
+          stopBillingRef.current?.();
+          stopBillingRef.current = null;
+          setInCall(false);
+          callRef.current = null;
+        },
+        onError: (e) => Alert.alert("কল এরর", e.message),
+      }
+    );
+
+    callRef.current = svc;
+    setInCall(true);
+    await svc.start();
+
+    // শুধুমাত্র ইউজারের ব্যালেন্স থেকে কয়েন কাটা হবে
+    if (authSession.user.id === currentSession.user_id) {
+      stopBillingRef.current = startCallBilling({
+        userId: authSession.user.id,
+        hostId: currentSession.host_id,
+        sessionId: sessionId!,
+        ratePerSecond: callRate,
+        monetizationOn: isMonetizationOn,
+        getBalance: () => profile?.coin_balance ?? 0,
+        onBalanceUpdate: (next) => {
+          if (profile) setProfile({ ...profile, coin_balance: next });
+        },
+        onBroke: () => {
+          Alert.alert("কয়েন শেষ", "কল শেষ করা হচ্ছে");
+          callRef.current?.end("no_coins");
+        },
+      });
+    }
+  }
+
+  async function endCall() {
+    stopBillingRef.current?.();
+    stopBillingRef.current = null;
+    await callRef.current?.end("hangup");
+    setInCall(false);
+  }
 
   async function handleSend() {
     if (!text.trim() || !authSession?.user || !sessionId || !currentSession)
@@ -257,6 +333,9 @@ export default function ConversationScreen() {
           text: "End",
           style: "destructive",
           onPress: async () => {
+            if (inCall) {
+              await endCall();
+            }
             await supabase.rpc("end_conversation", {
               p_session_id: sessionId,
             });
@@ -325,9 +404,37 @@ export default function ConversationScreen() {
             alignItems: "center",
             flexWrap: "wrap",
             justifyContent: "flex-end",
-            maxWidth: 160,
+            maxWidth: 180,
           }}
         >
+          {/* Call Controls */}
+          {!inCall ? (
+            <TouchableOpacity onPress={startCall}>
+              <Text style={{ color: COLORS.success, fontWeight: "600", fontSize: 13 }}>
+                Call
+              </Text>
+            </TouchableOpacity>
+          ) : (
+            <>
+              <TouchableOpacity
+                onPress={() => {
+                  const next = !muted;
+                  setMuted(next);
+                  callRef.current?.mute(next);
+                }}
+              >
+                <Text style={{ color: COLORS.text, fontWeight: "600", fontSize: 13 }}>
+                  {muted ? "Unmute" : "Mute"}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={endCall}>
+                <Text style={{ color: COLORS.danger, fontWeight: "600", fontSize: 13 }}>
+                  Hangup
+                </Text>
+              </TouchableOpacity>
+            </>
+          )}
+
           {!isHost && (
             <TouchableOpacity onPress={() => setGiftVisible(true)}>
               <Text style={{ color: COLORS.primary, fontWeight: "600", fontSize: 13 }}>
@@ -611,4 +718,4 @@ export default function ConversationScreen() {
       </Modal>
     </KeyboardAvoidingView>
   );
- }
+}
