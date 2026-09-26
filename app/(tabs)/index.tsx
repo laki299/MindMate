@@ -123,24 +123,26 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {/* Free Coins Button */}
-        <TouchableOpacity
-          onPress={() => router.push("/earn")}
-          style={{
-            backgroundColor: COLORS.primary,
-            borderRadius: 14,
-            paddingVertical: 12,
-            paddingHorizontal: 20,
-            marginTop: 16,
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <Text style={{ color: "#fff", fontSize: 16, fontWeight: "700" }}>
-            🎁 ফ্রি কয়েন জমা
-          </Text>
-        </TouchableOpacity>
+        {/* Free Coins Button - Only visible for role === "user" */}
+        {profile?.role === "user" && (
+          <TouchableOpacity
+            onPress={() => router.push("/earn")}
+            style={{
+              backgroundColor: COLORS.primary,
+              borderRadius: 14,
+              paddingVertical: 12,
+              paddingHorizontal: 20,
+              marginTop: 16,
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Text style={{ color: "#fff", fontSize: 16, fontWeight: "700" }}>
+              🎁 ফ্রি কয়েন জমা
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Host List */}
