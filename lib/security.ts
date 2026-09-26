@@ -2,7 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { supabase } from "./supabase";
 
 const VPN_CACHE_KEY = "last_network_check";
-const CACHE_MS = 10 * 60 * 1000; // ১০ মিনিট — WiFi/Data সুইচে বারবার পপআপ নয়
+const CACHE_MS = 10 * 60 * 1000; // ১০ মিনিট
 
 export async function checkNetworkAndCountry(userId: string): Promise<{
   vpnSuspected: boolean;
@@ -22,7 +22,6 @@ export async function checkNetworkAndCountry(userId: string): Promise<{
       }
     }
 
-    // ফ্রি IP API — proxy/hosting ফ্ল্যাগ থাকলে VPN সন্দেহ
     const res = await fetch("https://ipapi.co/json/", {
       headers: { Accept: "application/json" },
     });
@@ -31,16 +30,14 @@ export async function checkNetworkAndCountry(userId: string): Promise<{
     const countryCode = data.country_code || null;
     const countryName = data.country_name || null;
 
-    // VPN/Proxy সন্দেহ: hosting / proxy ফ্ল্যাগ (সব VPN ধরে না)
-    const vpnSuspected = !!(
-      data.version === undefined && false // placeholder
-    ) || !!(data.org && /vpn|proxy|hosting|datacenter|cloud/i.test(String(data.org)));
-
-    // কিছু API তে privacy flags থাকে
-    const isProxy = data.proxy === true || data.hosting === true;
+    const org = String(data.org || data.org_name || "");
+    const vpnSuspected =
+      data.proxy === true ||
+      data.hosting === true ||
+      /vpn|proxy|hosting|datacenter|cloud/i.test(org);
 
     const result = {
-      vpnSuspected: isProxy || vpnSuspected,
+      vpnSuspected,
       countryCode,
       countryName,
     };
@@ -50,7 +47,6 @@ export async function checkNetworkAndCountry(userId: string): Promise<{
       JSON.stringify({ ...result, ts: Date.now() })
     );
 
-    // দেশ সেভ (ইউজারকে দেখানো হবে না)
     if (userId && countryCode) {
       await supabase
         .from("profiles")
@@ -64,7 +60,6 @@ export async function checkNetworkAndCountry(userId: string): Promise<{
 
     return result;
   } catch {
-    // নেটওয়ার্ক এরর = ব্লক করব না (ডাটা/ওয়াইফাই সুইচ)
     return { vpnSuspected: false, countryCode: null, countryName: null };
   }
-      }
+}
