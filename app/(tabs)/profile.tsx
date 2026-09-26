@@ -1,4 +1,4 @@
-import { View, Text, TouchableOpacity, Alert } from "react-native";
+import { View, Text, TouchableOpacity, Alert, Share } from "react-native";
 import { router } from "expo-router";
 import { supabase } from "../../lib/supabase";
 import { useAuthStore } from "../../stores/authStore";
@@ -6,6 +6,19 @@ import { COLORS } from "../../lib/constants";
 
 export default function ProfileScreen() {
   const { profile, setSession, setProfile } = useAuthStore();
+
+  async function handleCopyUUID() {
+    if (!profile?.id) return;
+
+    try {
+      await Share.share({
+        message: profile.id,
+        title: "My UUID",
+      });
+    } catch {
+      Alert.alert("Your UUID", profile.id);
+    }
+  }
 
   async function handleLogout() {
     Alert.alert("Logout", "তুমি কি লগআউট করতে চাও?", [
@@ -25,7 +38,6 @@ export default function ProfileScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.background }}>
-      {/* Header */}
       <View
         style={{
           paddingTop: 60,
@@ -42,7 +54,6 @@ export default function ProfileScreen() {
       </View>
 
       <View style={{ padding: 20 }}>
-        {/* User Information Card */}
         <View
           style={{
             backgroundColor: COLORS.card,
@@ -63,29 +74,40 @@ export default function ProfileScreen() {
           >
             {profile?.full_name || "User"}
           </Text>
-          <Text style={{ color: COLORS.textSecondary, marginBottom: 8 }}>
+          <Text style={{ color: COLORS.textSecondary, marginBottom: 12 }}>
             Role: {profile?.role}
           </Text>
-          <Text style={{ color: COLORS.textSecondary }}>
+          <Text style={{ color: COLORS.textSecondary, marginBottom: 12 }}>
             Coin Balance: 🪙 {profile?.coin_balance ?? 0}
           </Text>
 
-          {/* UUID Display Option */}
           <TouchableOpacity
-            onPress={() => {
-              if (profile?.id) {
-                Alert.alert("Your UUID", profile.id, [{ text: "বন্ধ" }]);
-              }
+            onPress={handleCopyUUID}
+            style={{
+              backgroundColor: COLORS.background,
+              borderRadius: 10,
+              padding: 12,
+              borderWidth: 1,
+              borderColor: COLORS.border,
             }}
-            style={{ marginTop: 12 }}
           >
-            <Text style={{ color: COLORS.primary, fontSize: 13, fontWeight: "500" }}>
-              UUID: {profile?.id ? `${profile.id.slice(0, 8)}...` : "N/A"} (ট্যাপ করে দেখো)
+            <Text style={{ color: COLORS.textSecondary, fontSize: 12 }}>
+              UUID (ট্যাপ করে শেয়ার/কপি)
+            </Text>
+            <Text
+              style={{
+                color: COLORS.primary,
+                fontSize: 13,
+                marginTop: 4,
+                fontWeight: "600",
+              }}
+              numberOfLines={1}
+            >
+              {profile?.id}
             </Text>
           </TouchableOpacity>
         </View>
 
-        {/* Admin Panel Link */}
         {profile?.role === "admin" && (
           <TouchableOpacity
             onPress={() => router.push("/admin")}
@@ -99,13 +121,18 @@ export default function ProfileScreen() {
               borderColor: COLORS.border,
             }}
           >
-            <Text style={{ color: COLORS.primary, fontWeight: "600", fontSize: 16 }}>
+            <Text
+              style={{
+                color: COLORS.primary,
+                fontWeight: "600",
+                fontSize: 16,
+              }}
+            >
               Admin Panel
             </Text>
           </TouchableOpacity>
         )}
 
-        {/* Host Dashboard Link */}
         {profile?.role === "host" && (
           <TouchableOpacity
             onPress={() => router.push("/host")}
@@ -119,13 +146,18 @@ export default function ProfileScreen() {
               borderColor: COLORS.border,
             }}
           >
-            <Text style={{ color: COLORS.primary, fontWeight: "600", fontSize: 16 }}>
+            <Text
+              style={{
+                color: COLORS.primary,
+                fontWeight: "600",
+                fontSize: 16,
+              }}
+            >
               Host Dashboard
             </Text>
           </TouchableOpacity>
         )}
 
-        {/* Logout Button */}
         <TouchableOpacity
           onPress={handleLogout}
           style={{
@@ -135,7 +167,9 @@ export default function ProfileScreen() {
             alignItems: "center",
           }}
         >
-          <Text style={{ color: COLORS.danger, fontWeight: "600", fontSize: 16 }}>
+          <Text
+            style={{ color: COLORS.danger, fontWeight: "600", fontSize: 16 }}
+          >
             Logout
           </Text>
         </TouchableOpacity>
