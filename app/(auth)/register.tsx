@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { Link, router } from "expo-router";
 import { supabase } from "../../lib/supabase";
+import { saveDeviceIdToProfile } from "../../lib/device";
 import { COLORS } from "../../lib/constants";
 
 export default function RegisterScreen() {
@@ -51,11 +52,10 @@ export default function RegisterScreen() {
     }
 
     if (data.user) {
-      Alert.alert(
-        "সফল!",
-        "অ্যাকাউন্ট তৈরি হয়েছে। এখন Login করুন।",
-        [{ text: "OK", onPress: () => router.replace("/(auth)/login") }]
-      );
+      await saveDeviceIdToProfile(data.user.id);
+      Alert.alert("সফল!", "অ্যাকাউন্ট তৈরি হয়েছে। এখন Login করুন।", [
+        { text: "OK", onPress: () => router.replace("/(auth)/login") },
+      ]);
     }
   }
 
@@ -175,7 +175,9 @@ export default function RegisterScreen() {
             marginTop: 24,
           }}
         >
-          <Text style={{ color: COLORS.textSecondary }}>আগে থেকেই অ্যাকাউন্ট আছে? </Text>
+          <Text style={{ color: COLORS.textSecondary }}>
+            আগে থেকেই অ্যাকাউন্ট আছে?{" "}
+          </Text>
           <Link href="/(auth)/login" asChild>
             <TouchableOpacity>
               <Text style={{ color: COLORS.primary, fontWeight: "600" }}>
