@@ -25,6 +25,7 @@ export default function ProfileScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.background }}>
+      {/* Header */}
       <View
         style={{
           paddingTop: 60,
@@ -41,6 +42,7 @@ export default function ProfileScreen() {
       </View>
 
       <View style={{ padding: 20 }}>
+        {/* User Information Card */}
         <View
           style={{
             backgroundColor: COLORS.card,
@@ -61,14 +63,29 @@ export default function ProfileScreen() {
           >
             {profile?.full_name || "User"}
           </Text>
-          <Text style={{ color: COLORS.textSecondary, marginBottom: 12 }}>
+          <Text style={{ color: COLORS.textSecondary, marginBottom: 8 }}>
             Role: {profile?.role}
           </Text>
           <Text style={{ color: COLORS.textSecondary }}>
             Coin Balance: 🪙 {profile?.coin_balance ?? 0}
           </Text>
+
+          {/* UUID Display Option */}
+          <TouchableOpacity
+            onPress={() => {
+              if (profile?.id) {
+                Alert.alert("Your UUID", profile.id, [{ text: "বন্ধ" }]);
+              }
+            }}
+            style={{ marginTop: 12 }}
+          >
+            <Text style={{ color: COLORS.primary, fontSize: 13, fontWeight: "500" }}>
+              UUID: {profile?.id ? `${profile.id.slice(0, 8)}...` : "N/A"} (ট্যাপ করে দেখো)
+            </Text>
+          </TouchableOpacity>
         </View>
 
+        {/* Admin Panel Link */}
         {profile?.role === "admin" && (
           <TouchableOpacity
             onPress={() => router.push("/admin")}
@@ -88,6 +105,7 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         )}
 
+        {/* Host Dashboard Link */}
         {profile?.role === "host" && (
           <TouchableOpacity
             onPress={() => router.push("/host")}
@@ -107,6 +125,7 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         )}
 
+        {/* Logout Button */}
         <TouchableOpacity
           onPress={handleLogout}
           style={{
