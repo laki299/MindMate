@@ -42,6 +42,8 @@ export interface Host {
   text_enabled: boolean;
   voice_enabled: boolean;
   call_enabled: boolean;
+  text_rate: number;
+  call_rate: number;
   total_earned: number;
   total_withdrawn: number;
   is_active: boolean;
