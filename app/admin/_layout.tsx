@@ -6,6 +6,7 @@ export default function AdminLayout() {
       <Stack.Screen name="index" />
       <Stack.Screen name="stats" />
       <Stack.Screen name="ad-settings" />
+      <Stack.Screen name="monetization" />
       <Stack.Screen name="reports" />
       <Stack.Screen name="hosts" />
     </Stack>
