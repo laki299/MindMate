@@ -1,8 +1,10 @@
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
+import { Alert } from "react-native";
 import { useAuthStore } from "../stores/authStore";
 import { supabase } from "../lib/supabase";
+import { checkNetworkAndCountry } from "../lib/security";
 
 export default function RootLayout() {
   const { setSession, setProfile, setLoading } = useAuthStore();
@@ -24,6 +26,21 @@ export default function RootLayout() {
     return () => subscription.unsubscribe();
   }, []);
 
+  async function afterLogin(userId: string) {
+    try {
+      const net = await checkNetworkAndCountry(userId);
+      if (net.vpnSuspected) {
+        Alert.alert(
+          "VPN সনাক্ত",
+          "অ্যাপ ব্যবহার করতে VPN বন্ধ করুন। তারপর আবার চেষ্টা করুন।",
+          [{ text: "ঠিক আছে" }]
+        );
+      }
+    } catch (err) {
+      console.error("VPN check error:", err);
+    }
+  }
+
   async function fetchProfile(userId: string) {
     try {
       const { data, error } = await supabase
@@ -34,6 +51,7 @@ export default function RootLayout() {
 
       if (!error && data) {
         setProfile(data);
+        await afterLogin(userId);
       }
     } catch (err) {
       console.error("Profile fetch error:", err);
