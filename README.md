@@ -36,5 +36,6 @@ Fill:
 4. Supabase SQL: run schema + RPCs (transfer_coins, grant_ad_reward, etc.)
 
 5. Do not use Expo Go for calls. Build:
+   ```bash
    npx eas login
 npx eas build -p android --profile development
