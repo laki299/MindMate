@@ -27,3 +27,8 @@ Fill:
 - EXPO_PUBLIC_SUPABASE_ANON_KEY
 - EXPO_PUBLIC_METERED_USER
 - EXPO_PUBLIC_METERED_PASS
+
+3. Install:
+   ```bash
+   npm install
+   npx expo install react-native-webrtc
