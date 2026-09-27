@@ -76,25 +76,6 @@ export default function EarnScreen() {
     batchCooldownMinutes: settings?.short_video_batch_cooldown_minutes ?? 10,
   };
 
-  async function grantCoins(amount: number, type: "ad_reward" | "short_video") {
-    if (!profile) return;
-
-    const { error } = await supabase
-      .from("profiles")
-      .update({ coin_balance: profile.coin_balance + amount })
-      .eq("id", profile.id);
-
-    if (error) throw error;
-
-    setProfile({ ...profile, coin_balance: profile.coin_balance + amount });
-
-    if (type === "ad_reward") {
-      await supabase.rpc("increment_ad_watch");
-    } else {
-      await supabase.rpc("increment_short_video_watch");
-    }
-  }
-
   async function onRewardedAd() {
     const check = await canWatchAd(adCfg);
     if (!check.ok) {
@@ -104,9 +85,13 @@ export default function EarnScreen() {
 
     setBusy(true);
     try {
-      // পরে AppLovin MAX এখানে বসবে — এখন সিমুলেশন
-      await grantCoins(adCoins, "ad_reward");
+      // পরে এখানে AppLovin rewarded show → onReward callback এ RPC
+      const { data, error } = await supabase.rpc("grant_ad_reward");
+      if (error) throw error;
       await recordAdWatch(adCfg);
+      if (profile && typeof data === "number") {
+        setProfile({ ...profile, coin_balance: data });
+      }
       Alert.alert("সফল", `${adCoins} Coin যোগ হয়েছে`);
     } catch (e: any) {
       Alert.alert("Error", e.message || "ব্যর্থ");
@@ -123,8 +108,12 @@ export default function EarnScreen() {
 
     setBusy(true);
     try {
-      await grantCoins(svCoins, "short_video");
+      const { data, error } = await supabase.rpc("grant_short_video_reward");
+      if (error) throw error;
       await recordShortVideoWatch(svCfg);
+      if (profile && typeof data === "number") {
+        setProfile({ ...profile, coin_balance: data });
+      }
       Alert.alert("সফল", `${svCoins} Coin যোগ হয়েছে`);
     } catch (e: any) {
       Alert.alert("Error", e.message || "ব্যর্থ");
@@ -133,10 +122,7 @@ export default function EarnScreen() {
   }
 
   function onOfferwall() {
-    Alert.alert(
-      "শীঘ্রই",
-      "Offerwall অ্যাপ রিলিজের পর চালু হবে। রেট Admin নির্ধারণ করে।"
-    );
+    Alert.alert("শীঘ্রই", "Offerwall অ্যাপ রিলিজের পর চালু হবে।");
   }
 
   if (loading) {
@@ -168,10 +154,7 @@ export default function EarnScreen() {
           alignItems: "center",
         }}
       >
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={{ marginRight: 12 }}
-        >
+        <TouchableOpacity onPress={() => router.back()} style={{ marginRight: 12 }}>
           <Text style={{ fontSize: 24, color: COLORS.primary }}>‹</Text>
         </TouchableOpacity>
         <Text style={{ fontSize: 18, fontWeight: "600", color: COLORS.text }}>
@@ -186,37 +169,22 @@ export default function EarnScreen() {
 
         <EarnCard
           title="রিওয়ার্ডেড বিজ্ঞাপন"
-          subtitle={`${adCoins} Coin · মিনিটে ${adCfg.maxPerMinute}টি · টানা ${adCfg.maxConsecutive}টির পর ${adCfg.batchCooldownMinutes} মিনিট কুলডাউন`}
+          subtitle={`${adCoins} Coin · মিনিটে ${adCfg.maxPerMinute} · টানা ${adCfg.maxConsecutive} এর পর ${adCfg.batchCooldownMinutes} মিনিট`}
           onPress={onRewardedAd}
           disabled={busy}
         />
-
         <EarnCard
           title="শর্ট ভিডিও"
-          subtitle={`${svCoins} Coin · মিনিটে ${svCfg.maxPerMinute}টি · টানা ${svCfg.maxConsecutive}টির পর ${svCfg.batchCooldownMinutes} মিনিট কুলডাউন`}
+          subtitle={`${svCoins} Coin · মিনিটে ${svCfg.maxPerMinute} · টানা ${svCfg.maxConsecutive} এর পর ${svCfg.batchCooldownMinutes} মিনিট`}
           onPress={onShortVideo}
           disabled={busy}
         />
-
         <EarnCard
           title="অফার ওয়াল"
-          subtitle="পোস্টব্যাক অনুযায়ী · শীঘ্রই"
+          subtitle="শীঘ্রই"
           onPress={onOfferwall}
           disabled={busy}
         />
-
-        <Text
-          style={{
-            color: COLORS.textSecondary,
-            fontSize: 12,
-            marginTop: 12,
-            lineHeight: 18,
-          }}
-        >
-          • লিমিট Admin প্যানেল থেকে বদলাতে পারবে{"\n"}
-          • আসল অ্যাড SDK ল্যাপটপ বিল্ডে যোগ হবে{"\n"}
-          • এখন টেস্ট মোডে কয়েন সিমুলেট হয়
-        </Text>
       </ScrollView>
     </View>
   );
@@ -250,9 +218,7 @@ function EarnCard({
       <Text style={{ fontSize: 16, fontWeight: "600", color: COLORS.text }}>
         {title}
       </Text>
-      <Text
-        style={{ color: COLORS.textSecondary, marginTop: 6, fontSize: 13 }}
-      >
+      <Text style={{ color: COLORS.textSecondary, marginTop: 6, fontSize: 13 }}>
         {subtitle}
       </Text>
     </TouchableOpacity>
