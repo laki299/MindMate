@@ -24,7 +24,12 @@
         "backgroundColor": "#0A0A5C"
       },
       "package": "com.mindmate.app",
-      "permissions": ["RECORD_AUDIO", "MODIFY_AUDIO_SETTINGS"]
+      "permissions": [
+        "RECORD_AUDIO",
+        "MODIFY_AUDIO_SETTINGS",
+        "INTERNET",
+        "ACCESS_NETWORK_STATE"
+      ]
     },
     "plugins": [
       "expo-router",
@@ -46,7 +51,11 @@
     "extra": {
       "eas": {
         "projectId": "YOUR_PROJECT_ID"
+      },
+      "router": {
+        "origin": false
       }
-    }
+    },
+    "owner": "laki299"
   }
 }
