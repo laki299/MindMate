@@ -44,4 +44,4 @@ Fill:
 
 
 OTA
- After first native build, JS-only changes via EAS Update — no rebuild unless native modules change.
+ - After first native build, JS-only changes via EAS Update — no rebuild unless native modules change.
