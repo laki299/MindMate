@@ -9,7 +9,7 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#7C3AED"
+      "backgroundColor": "#0A0A5C"
     },
     "ios": {
       "supportsTablet": true,
@@ -20,7 +20,8 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#7C3AED"
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0A0A5C"
       },
       "package": "com.mindmate.app",
       "permissions": ["RECORD_AUDIO", "MODIFY_AUDIO_SETTINGS"]
