@@ -38,4 +38,4 @@ Fill:
 5. Do not use Expo Go for calls. Build:
    ```bash
    npx eas login
-npx eas build -p android --profile development
+   npx eas build -p android --profile development
