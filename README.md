@@ -32,3 +32,5 @@ Fill:
    ```bash
    npm install
    npx expo install react-native-webrtc
+
+4. Supabase SQL: run schema + RPCs (transfer_coins, grant_ad_reward, etc.)
