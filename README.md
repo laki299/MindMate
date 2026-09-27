@@ -43,5 +43,5 @@ Fill:
 6. Install APK, test two accounts.
 
 
-OTA
+OTA:
 - After first native build, JS-only changes via EAS Update — no rebuild unless native modules change.
