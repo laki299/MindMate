@@ -27,13 +27,14 @@ Fill:
  * EXPO_PUBLIC_METERED_USER
  * EXPO_PUBLIC_METERED_PASS
   
- * Install:
+ * Install:  
    npm install
 npx expo install react-native-webrtc
 
- * Supabase SQL: run schema + RPCs (transfer_coins, grant_ad_reward, etc.)
+ * Supabase SQL:
+  run schema + RPCs (transfer_coins, grant_ad_reward, etc.)
  
- * Do not use Expo Go for calls. Build:
+ * Do not use Expo Go for calls. Build: 
    npx eas login
 npx eas build -p android --profile development
 
