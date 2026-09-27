@@ -20,35 +20,4 @@
 2. Copy env:
    ```bash
    cp .env.example .env
-
-Fill:
- * EXPO_PUBLIC_SUPABASE_URL
- * EXPO_PUBLIC_SUPABASE_ANON_KEY
- * EXPO_PUBLIC_METERED_USER
- * EXPO_PUBLIC_METERED_PASS
-  
- * Install:  
-   npm install
-npx expo install react-native-webrtc
-
- * Supabase SQL:
-  run schema + RPCs (transfer_coins, grant_ad_reward, etc.)
- 
- * Do not use Expo Go for calls. Build: 
-   npx eas login
-npx eas build -p android --profile development
-
- * Install APK, test two accounts.
-
-OTA
-After first native build, JS-only changes via EAS Update — no rebuild unless native modules change.
-
-Security
- * Never commit .env
- * Host/Admin cannot grant themselves ad coins
- * Monetization toggle in Admin
- * VPN check best-effort; country hidden from users
-
-Mobile-only workflow
-GitHub web edit + Supabase SQL Editor. Native SDK / EAS requires laptop.
-
+   
