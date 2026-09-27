@@ -43,5 +43,16 @@ Fill:
 6. Install APK, test two accounts.
 
 
-OTA:
+# OTA
 - After first native build, JS-only changes via EAS Update — no rebuild unless native modules change.
+
+# Security:
+
+- Never commit .env
+- Host/Admin cannot grant themselves ad coins
+- Monetization toggle in Admin
+- VPN check best-effort; country hidden from users
+
+#  Mobile-only workflow
+  
+ - GitHub web edit + Supabase SQL Editor. Native SDK / EAS requires laptop.
