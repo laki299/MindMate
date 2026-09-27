@@ -13,15 +13,28 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.mindmate.app"
+      "bundleIdentifier": "com.mindmate.app",
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "MindMate অডিও কলের জন্য মাইক্রোফোন প্রয়োজন"
+      }
     },
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#7C3AED"
       },
-      "package": "com.mindmate.app"
+      "package": "com.mindmate.app",
+      "permissions": ["RECORD_AUDIO", "MODIFY_AUDIO_SETTINGS"]
     },
-    "plugins": ["expo-router"],
+    "plugins": [
+      "expo-router",
+      [
+        "react-native-webrtc",
+        {
+          "cameraPermission": false,
+          "microphonePermission": "MindMate অডিও কলের জন্য মাইক্রোফোন প্রয়োজন"
+        }
+      ]
+    ],
     "scheme": "mindmate",
     "runtimeVersion": {
       "policy": "appVersion"
