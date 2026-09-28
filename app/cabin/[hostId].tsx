@@ -23,6 +23,14 @@ export default function CabinScreen() {
   const [joining, setJoining] = useState(false);
   const [inQueue, setInQueue] = useState(false);
 
+  // অ-প্রবাসী ইউজার হলে রিডাইরেক্ট করা
+  useEffect(() => {
+    if (profile && profile.is_expat === false) {
+      Alert.alert("হোস্ট ক্যাবিন", "শুধু প্রবাসী ইউজারদের জন্য");
+      router.replace("/(tabs)");
+    }
+  }, [profile?.is_expat]);
+
   async function fetchData() {
     if (!hostId) return;
 
@@ -325,4 +333,5 @@ export default function CabinScreen() {
       </ScrollView>
     </View>
   );
-}
+              }
+                  
