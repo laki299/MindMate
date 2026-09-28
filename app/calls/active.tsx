@@ -10,6 +10,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { supabase } from "../../lib/supabase";
 import { useAuthStore } from "../../stores/authStore";
 import { COLORS } from "../../lib/constants";
+import { CallService } from "../../services/callService";
 
 export default function ActiveCallScreen() {
   const { peerId, peerName, callType, role } = useLocalSearchParams<{
@@ -24,6 +25,8 @@ export default function ActiveCallScreen() {
   const [seconds, setSeconds] = useState(0);
   const [muted, setMuted] = useState(false);
   const [connected, setConnected] = useState(false);
+
+  const callRef = useRef<CallService | null>(null);
   const logIdRef = useRef<string | null>(null);
   const billingRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -46,6 +49,7 @@ export default function ActiveCallScreen() {
   async function startSession() {
     if (!session?.user || !peerId) return;
 
+    // ১. Call Logs এন্ট্রি তৈরি করা (শুধুমাত্র കলারের জন্য)
     if (isCaller) {
       const { data } = await supabase
         .from("call_logs")
@@ -58,17 +62,40 @@ export default function ActiveCallScreen() {
         })
         .select("id")
         .single();
+
       if (data) logIdRef.current = data.id;
     }
 
-    // পরে: CallService.start() — এখন UI
+    // ২. WebRTC CallService ইনস্ট্যান্স তৈরি ও শুরু
+    const key = [session.user.id, peerId].sort().join("_");
+    const svc = new CallService(key, session.user.id, isCaller, {
+      video: mode === "video",
+      callbacks: {
+        onEnded: () => {
+          void cleanup(true);
+        },
+        onError: (e) => Alert.alert("কল এরর", e.message),
+      },
+    });
+
+    callRef.current = svc;
+
+    try {
+      await svc.start();
+    } catch (e) {
+      // Expo Go-তে নেটিভ ড্রাইভার না থাকলে ক্যাচ করবে, তবে UI চলতে থাকবে
+      console.log("CallService start error (Expo Go / Fallback):", e);
+    }
+
     setConnected(true);
 
+    // ৩. কল টাইমার চালু
     timerRef.current = setInterval(() => {
       secondsRef.current += 1;
       setSeconds(secondsRef.current);
     }, 1000);
 
+    // ৪. বিলিং সিস্টেম (প্রতি মিনিটে চার্জ কাটবে)
     if (isCaller) {
       await chargeMinute();
       billingRef.current = setInterval(() => {
@@ -85,7 +112,7 @@ export default function ActiveCallScreen() {
     });
 
     if (error) {
-      console.warn(error.message);
+      console.warn("Charge minute error:", error.message);
       return;
     }
 
@@ -104,13 +131,23 @@ export default function ActiveCallScreen() {
     });
 
     if (!res.continue) {
-      Alert.alert("কয়েন শেষ", "কল শেষ হচ্ছে");
+      Alert.alert("কয়েন শেষ", "পর্যাপ্ত কয়েন না থাকায় কল শেষ করা হচ্ছে");
       await cleanup(true);
     }
   }
 
-  function toggleMode() {
-    setMode((m) => (m === "audio" ? "video" : "audio"));
+  function toggleMute() {
+    setMuted((prev) => {
+      const next = !prev;
+      callRef.current?.mute(next);
+      return next;
+    });
+  }
+
+  async function toggleMode() {
+    const next = mode === "audio" ? "video" : "audio";
+    setMode(next);
+    await callRef.current?.setVideoEnabled(next === "video", true);
   }
 
   async function cleanup(leaveScreen: boolean) {
@@ -118,6 +155,11 @@ export default function ActiveCallScreen() {
     if (timerRef.current) clearInterval(timerRef.current);
     billingRef.current = null;
     timerRef.current = null;
+
+    if (callRef.current) {
+      await callRef.current.end("hangup");
+      callRef.current = null;
+    }
 
     if (logIdRef.current) {
       await supabase
@@ -145,9 +187,10 @@ export default function ActiveCallScreen() {
       <Text style={styles.name}>{peerName || "কল"}</Text>
       <Text style={styles.sub}>
         {connected
-          ? `${mode === "video" ? "ভিডিও" : "অডিও"} · \( {mm}: \){ss}`
+          ? `${mode === "video" ? "ভিডিও" : "অডিও"} · ${mm}:${ss}`
           : "সংযোগ হচ্ছে..."}
       </Text>
+
       {(profile?.coin_debt || 0) > 0 ? (
         <Text style={styles.debt}>বকেয়া: {profile?.coin_debt} কয়েন</Text>
       ) : null}
@@ -155,7 +198,7 @@ export default function ActiveCallScreen() {
       <View style={styles.actions}>
         <Action
           label={muted ? "Unmute" : "Mute"}
-          onPress={() => setMuted((m) => !m)}
+          onPress={toggleMute}
         />
         <Action
           label={mode === "video" ? "অডিওতে যাও" : "ভিডিও চালু"}
@@ -165,7 +208,7 @@ export default function ActiveCallScreen() {
       </View>
 
       <Text style={styles.hint}>
-        বিলিং RPC · WebRTC ল্যাপটপ বিল্ডে পূর্ণ কানেক্ট
+        বিলিং RPC · WebRTC ল্যাপটপ/প্রোডাকশন বিল্ডে পূর্ণ কানেক্ট
       </Text>
     </View>
   );
