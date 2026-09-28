@@ -137,6 +137,7 @@ export interface AppSettings {
   short_video_batch_cooldown_minutes?: number;
   a2a_audio_coins_per_min?: number;
   a2a_video_coins_per_min?: number;
+  screenshot_block_enabled?: boolean;
 }
 
 export interface AppStats {
@@ -199,3 +200,4 @@ export type Database = {
     };
   };
 };
+  
