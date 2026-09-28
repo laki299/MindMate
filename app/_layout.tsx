@@ -1,14 +1,17 @@
-import { Stack } from "expo-router";
+import { Stack, router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { Alert } from "react-native";
 import { useAuthStore } from "../stores/authStore";
 import { supabase } from "../lib/supabase";
 import { checkNetworkAndCountry } from "../lib/security";
+import { subscribeIncomingCalls } from "../lib/incomingCall";
 
 export default function RootLayout() {
-  const { setSession, setProfile, setLoading } = useAuthStore();
+  const { session, setSession, setProfile, setLoading } = useAuthStore();
+  const channelRef = useRef<ReturnType<typeof subscribeIncomingCalls> | null>(null);
 
+  // Auth Initialization & Listener
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
@@ -33,6 +36,39 @@ export default function RootLayout() {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  // Global Incoming Call Listener
+  useEffect(() => {
+    const uid = session?.user?.id;
+    if (!uid) {
+      if (channelRef.current) {
+        void supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
+      return;
+    }
+
+    channelRef.current = subscribeIncomingCalls(uid, {
+      onIncoming: (p) => {
+        router.push({
+          pathname: "/calls/incoming",
+          params: {
+            fromId: p.fromId,
+            fromName: p.fromName,
+            callType: p.callType,
+            callId: p.callId,
+          },
+        });
+      },
+    });
+
+    return () => {
+      if (channelRef.current) {
+        void supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
+    };
+  }, [session?.user?.id]);
 
   async function fetchProfile(userId: string) {
     const { data, error } = await supabase
