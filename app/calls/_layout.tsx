@@ -9,6 +9,7 @@ export default function CallsLayout() {
       <Stack.Screen name="save-contact" />
       <Stack.Screen name="my-number" />
       <Stack.Screen name="active" />
+      <Stack.Screen name="incoming" />
     </Stack>
   );
 }
