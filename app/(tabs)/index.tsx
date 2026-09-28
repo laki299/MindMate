@@ -7,6 +7,7 @@ import {
   Image,
   ActivityIndicator,
   RefreshControl,
+  ScrollView,
 } from "react-native";
 import { router } from "expo-router";
 import { supabase } from "../../lib/supabase";
@@ -19,6 +20,8 @@ export default function HomeScreen() {
   const [hosts, setHosts] = useState<Host[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  const isExpat = !!profile?.is_expat;
 
   async function fetchHosts() {
     const { data, error } = await supabase
@@ -145,114 +148,145 @@ export default function HomeScreen() {
         )}
       </View>
 
-      {/* Host List */}
-      <FlatList
-        data={hosts}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={{ padding: 16 }}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={() => {
-              setRefreshing(true);
-              fetchHosts();
-            }}
-            colors={[COLORS.primary]}
-          />
-        }
-        ListEmptyComponent={
-          <View style={{ alignItems: "center", marginTop: 60 }}>
-            <Text style={{ color: COLORS.textSecondary, fontSize: 16 }}>
-              এখন কোনো Host নেই
-            </Text>
-          </View>
-        }
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            onPress={() => router.push(`/cabin/${item.id}`)}
-            style={{
-              backgroundColor: COLORS.card,
-              borderRadius: 16,
-              padding: 16,
-              marginBottom: 12,
-              flexDirection: "row",
-              alignItems: "center",
-              borderWidth: 1,
-              borderColor: COLORS.border,
-            }}
-          >
-            <Image
-              source={{
-                uri:
-                  item.photo_url ||
-                  "https://ui-avatars.com/api/?name=" +
-                    encodeURIComponent(item.display_name) +
-                    "&background=7C3AED&color=fff",
+      {/* Host List / Non-Expat Notice */}
+      {isExpat ? (
+        <FlatList
+          data={hosts}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={{ padding: 16 }}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => {
+                setRefreshing(true);
+                fetchHosts();
               }}
-              style={{
-                width: 56,
-                height: 56,
-                borderRadius: 28,
-                marginRight: 14,
-              }}
+              colors={[COLORS.primary]}
             />
-
-            <View style={{ flex: 1 }}>
-              <Text
-                style={{
-                  fontSize: 17,
-                  fontWeight: "600",
-                  color: COLORS.text,
-                  marginBottom: 4,
-                }}
-              >
-                {item.display_name}
+          }
+          ListEmptyComponent={
+            <View style={{ alignItems: "center", marginTop: 60 }}>
+              <Text style={{ color: COLORS.textSecondary, fontSize: 16 }}>
+                এখন কোনো Host নেই
               </Text>
+            </View>
+          }
+          renderItem={({ item }) => (
+            <TouchableOpacity
+              onPress={() => router.push(`/cabin/${item.id}`)}
+              style={{
+                backgroundColor: COLORS.card,
+                borderRadius: 16,
+                padding: 16,
+                marginBottom: 12,
+                flexDirection: "row",
+                alignItems: "center",
+                borderWidth: 1,
+                borderColor: COLORS.border,
+              }}
+            >
+              <Image
+                source={{
+                  uri:
+                    item.photo_url ||
+                    "https://ui-avatars.com/api/?name=" +
+                      encodeURIComponent(item.display_name) +
+                      "&background=7C3AED&color=fff",
+                }}
+                style={{
+                  width: 56,
+                  height: 56,
+                  borderRadius: 28,
+                  marginRight: 14,
+                }}
+              />
 
-              <View style={{ flexDirection: "row", alignItems: "center" }}>
-                <View
-                  style={{
-                    width: 8,
-                    height: 8,
-                    borderRadius: 4,
-                    backgroundColor: getStatusColor(item.status),
-                    marginRight: 6,
-                  }}
-                />
+              <View style={{ flex: 1 }}>
                 <Text
                   style={{
-                    fontSize: 13,
-                    color: getStatusColor(item.status),
-                    fontWeight: "500",
+                    fontSize: 17,
+                    fontWeight: "600",
+                    color: COLORS.text,
+                    marginBottom: 4,
                   }}
                 >
-                  {getStatusText(item.status)}
+                  {item.display_name}
                 </Text>
+
+                <View style={{ flexDirection: "row", alignItems: "center" }}>
+                  <View
+                    style={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: 4,
+                      backgroundColor: getStatusColor(item.status),
+                      marginRight: 6,
+                    }}
+                  />
+                  <Text
+                    style={{
+                      fontSize: 13,
+                      color: getStatusColor(item.status),
+                      fontWeight: "500",
+                    }}
+                  >
+                    {getStatusText(item.status)}
+                  </Text>
+                </View>
+
+                <View style={{ flexDirection: "row", marginTop: 6, gap: 8 }}>
+                  {item.text_enabled && (
+                    <Text style={{ fontSize: 12, color: COLORS.textSecondary }}>
+                      💬 Text
+                    </Text>
+                  )}
+                  {item.voice_enabled && (
+                    <Text style={{ fontSize: 12, color: COLORS.textSecondary }}>
+                      🎙️ Voice
+                    </Text>
+                  )}
+                  {item.call_enabled && (
+                    <Text style={{ fontSize: 12, color: COLORS.textSecondary }}>
+                      📞 Call
+                    </Text>
+                  )}
+                </View>
               </View>
 
-              <View style={{ flexDirection: "row", marginTop: 6, gap: 8 }}>
-                {item.text_enabled && (
-                  <Text style={{ fontSize: 12, color: COLORS.textSecondary }}>
-                    💬 Text
-                  </Text>
-                )}
-                {item.voice_enabled && (
-                  <Text style={{ fontSize: 12, color: COLORS.textSecondary }}>
-                    🎙️ Voice
-                  </Text>
-                )}
-                {item.call_enabled && (
-                  <Text style={{ fontSize: 12, color: COLORS.textSecondary }}>
-                    📞 Call
-                  </Text>
-                )}
-              </View>
-            </View>
-
-            <Text style={{ fontSize: 20, color: COLORS.primary }}>›</Text>
-          </TouchableOpacity>
-        )}
-      />
+              <Text style={{ fontSize: 20, color: COLORS.primary }}>›</Text>
+            </TouchableOpacity>
+          )}
+        />
+      ) : (
+        <ScrollView contentContainerStyle={{ padding: 16 }}>
+          <View
+            style={{
+              backgroundColor: COLORS.card,
+              borderRadius: 14,
+              padding: 20,
+              borderWidth: 1,
+              borderColor: COLORS.border,
+              marginBottom: 16,
+            }}
+          >
+            <Text style={{ fontWeight: "600", color: COLORS.text, marginBottom: 8, fontSize: 16 }}>
+              হোস্ট ক্যাবিন
+            </Text>
+            <Text style={{ color: COLORS.textSecondary, lineHeight: 20 }}>
+              হোস্ট সেবা শুধু প্রবাসী ইউজারদের জন্য (বাংলাদেশ, পাকিস্তান, ভারত
+              বাদে)। কল ট্যাব থেকে অ্যাকাউন্ট-টু-অ্যাকাউন্ট কল ব্যবহার করো।
+            </Text>
+            <TouchableOpacity
+              onPress={() => router.push("/(tabs)/calls")}
+              style={{ marginTop: 12 }}
+            >
+              <Text style={{ color: COLORS.primary, fontWeight: "600" }}>
+                কল ট্যাব খুলো →
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      )}
     </View>
   );
 }
