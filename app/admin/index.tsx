@@ -15,6 +15,11 @@ const MENUS = [
     desc: "কুলডাউন, লিমিট, কয়েন রেট",
   },
   {
+    title: "A2A কল রেট",
+    path: "/admin/a2a-rates",
+    desc: "অ্যাকাউন্ট কল — অডিও/ভিডিও প্রতি মিনিট",
+  },
+  {
     title: "Monetization ON/OFF",
     path: "/admin/monetization",
     desc: "ফ্রি মোড টগল",
@@ -46,10 +51,7 @@ export default function AdminHome() {
         }}
       >
         <Text style={{ color: COLORS.textSecondary }}>শুধু Admin</Text>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={{ marginTop: 16 }}
-        >
+        <TouchableOpacity onPress={() => router.back()} style={{ marginTop: 16 }}>
           <Text style={{ color: COLORS.primary }}>ফিরে যাও</Text>
         </TouchableOpacity>
       </View>
@@ -70,10 +72,7 @@ export default function AdminHome() {
           alignItems: "center",
         }}
       >
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={{ marginRight: 12 }}
-        >
+        <TouchableOpacity onPress={() => router.back()} style={{ marginRight: 12 }}>
           <Text style={{ fontSize: 24, color: COLORS.primary }}>‹</Text>
         </TouchableOpacity>
         <Text style={{ fontSize: 18, fontWeight: "600", color: COLORS.text }}>
@@ -95,9 +94,7 @@ export default function AdminHome() {
               borderColor: COLORS.border,
             }}
           >
-            <Text
-              style={{ fontSize: 16, fontWeight: "600", color: COLORS.text }}
-            >
+            <Text style={{ fontSize: 16, fontWeight: "600", color: COLORS.text }}>
               {m.title}
             </Text>
             <Text
