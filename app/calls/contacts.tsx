@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
+  Alert,
 } from "react-native";
 import { router, useFocusEffect } from "expo-router";
 import { supabase } from "../../lib/supabase";
@@ -13,9 +14,10 @@ import { useAuthStore } from "../../stores/authStore";
 import { Contact } from "../../lib/types";
 import { displayContactName } from "../../lib/expat";
 import { COLORS } from "../../lib/constants";
+import { sendCallInvite } from "../../lib/incomingCall";
 
 export default function ContactsScreen() {
-  const { session } = useAuthStore();
+  const { session, profile } = useAuthStore();
   const [list, setList] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -58,26 +60,49 @@ export default function ContactsScreen() {
     }, [session?.user?.id])
   );
 
-  function call(c: Contact, type: "audio" | "video") {
+  async function call(c: Contact, type: "audio" | "video") {
     const peerId = c.peer_id || c.peer?.id;
     if (!peerId) {
+      Alert.alert("ত্রুটি", "পিয়ার আইডি পাওয়া যায়নি");
       return;
     }
+
+    if (!session?.user) {
+      Alert.alert("ত্রুটি", "লগইন করা নেই");
+      return;
+    }
+
     const name = displayContactName(
       c.custom_name,
       c.peer?.full_name,
       c.peer?.username,
       c.peer_phone_code
     );
-    router.push({
-      pathname: "/calls/active",
-      params: {
-        peerId,
-        peerName: name,
+
+    const callId = `${Date.now()}`;
+
+    try {
+      await sendCallInvite({
+        toUserId: peerId,
+        fromId: session.user.id,
+        fromName: profile?.full_name || profile?.username || profile?.phone_code || "User",
         callType: type,
-        role: "caller",
-      },
-    });
+        callId,
+      });
+
+      router.push({
+        pathname: "/calls/active",
+        params: {
+          peerId,
+          peerName: name,
+          callType: type,
+          role: "caller",
+          callId,
+        },
+      });
+    } catch {
+      Alert.alert("ত্রুটি", "কল ইনভাইট পাঠানো সম্ভব হয়নি");
+    }
   }
 
   return (
@@ -193,4 +218,4 @@ export default function ContactsScreen() {
       )}
     </View>
   );
- }
+}
