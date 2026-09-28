@@ -34,6 +34,11 @@ const MENUS = [
     path: "/admin/hosts",
     desc: "প্রতি হোস্টের কয়েন",
   },
+  {
+    title: "প্রাইভেসি / স্ক্রিন",
+    path: "/admin/privacy",
+    desc: "স্ক্রিনশট ও রেকর্ড ব্লক অন/অফ",
+  },
 ];
 
 export default function AdminHome() {
