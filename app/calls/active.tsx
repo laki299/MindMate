@@ -9,7 +9,7 @@ import {
 import { router, useLocalSearchParams } from "expo-router";
 import { supabase } from "../../lib/supabase";
 import { useAuthStore } from "../../stores/authStore";
-import { COLORS, COIN_RATES } from "../../lib/constants";
+import { COLORS } from "../../lib/constants";
 
 export default function ActiveCallScreen() {
   const { peerId, peerName, callType, role } = useLocalSearchParams<{
@@ -27,19 +27,25 @@ export default function ActiveCallScreen() {
   const logIdRef = useRef<string | null>(null);
   const billingRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const secondsRef = useRef(0);
+  const modeRef = useRef(mode);
 
   const isCaller = role === "caller";
-  const isExpat = !!profile?.is_expat;
+
+  useEffect(() => {
+    modeRef.current = mode;
+  }, [mode]);
 
   useEffect(() => {
     startSession();
-    return () => cleanup(false);
+    return () => {
+      void cleanup(false);
+    };
   }, []);
 
   async function startSession() {
     if (!session?.user || !peerId) return;
 
-    // call_log তৈরি (caller)
     if (isCaller) {
       const { data } = await supabase
         .from("call_logs")
@@ -55,66 +61,56 @@ export default function ActiveCallScreen() {
       if (data) logIdRef.current = data.id;
     }
 
-    // WebRTC: পরে CallService — এখন UI কানেক্টেড সিমুলেশন
+    // পরে: CallService.start() — এখন UI
     setConnected(true);
 
     timerRef.current = setInterval(() => {
-      setSeconds((s) => s + 1);
+      secondsRef.current += 1;
+      setSeconds(secondsRef.current);
     }, 1000);
 
     if (isCaller) {
-      chargeMinute();
-      billingRef.current = setInterval(chargeMinute, 60_000);
+      await chargeMinute();
+      billingRef.current = setInterval(() => {
+        void chargeMinute();
+      }, 60_000);
     }
   }
 
   async function chargeMinute() {
     if (!session?.user || !profile) return;
 
-    const { data: settings } = await supabase
-      .from("app_settings")
-      .select(
-        "monetization_enabled, a2a_audio_coins_per_min, a2a_video_coins_per_min"
-      )
-      .eq("id", 1)
-      .single();
+    const { data, error } = await supabase.rpc("charge_a2a_minute", {
+      p_mode: modeRef.current,
+    });
 
-    if (settings && settings.monetization_enabled === false) return;
-
-    const rate =
-      mode === "video"
-        ? settings?.a2a_video_coins_per_min ?? COIN_RATES.A2A_VIDEO_PER_MIN
-        : settings?.a2a_audio_coins_per_min ?? COIN_RATES.A2A_AUDIO_PER_MIN;
-
-    if (profile.coin_balance >= rate) {
-      const next = profile.coin_balance - rate;
-      await supabase
-        .from("profiles")
-        .update({ coin_balance: next })
-        .eq("id", profile.id);
-      setProfile({ ...profile, coin_balance: next });
+    if (error) {
+      console.warn(error.message);
       return;
     }
 
-    // কয়েন কম
-    if (isExpat) {
-      const debt = (profile.coin_debt || 0) + rate;
-      await supabase
-        .from("profiles")
-        .update({ coin_debt: debt })
-        .eq("id", profile.id);
-      setProfile({ ...profile, coin_debt: debt });
-      // কল চলতে থাকবে
-      return;
-    }
+    const res = data as {
+      charged: number;
+      balance: number;
+      debt: number;
+      continue: boolean;
+      reason: string;
+    };
 
-    Alert.alert("কয়েন শেষ", "কল শেষ হচ্ছে");
-    cleanup(true);
+    setProfile({
+      ...profile,
+      coin_balance: res.balance,
+      coin_debt: res.debt,
+    });
+
+    if (!res.continue) {
+      Alert.alert("কয়েন শেষ", "কল শেষ হচ্ছে");
+      await cleanup(true);
+    }
   }
 
   function toggleMode() {
     setMode((m) => (m === "audio" ? "video" : "audio"));
-    // পরে: WebRTC replaceTrack / renegotiate
   }
 
   async function cleanup(leaveScreen: boolean) {
@@ -128,21 +124,17 @@ export default function ActiveCallScreen() {
         .from("call_logs")
         .update({
           ended_at: new Date().toISOString(),
-          duration_seconds: seconds,
-          call_type: mode,
+          duration_seconds: secondsRef.current,
+          call_type: modeRef.current,
         })
         .eq("id", logIdRef.current);
     }
 
-    // WebRTC end() পরে
-
-    if (leaveScreen) {
-      router.back();
-    }
+    if (leaveScreen) router.back();
   }
 
   function hangup() {
-    cleanup(true);
+    void cleanup(true);
   }
 
   const mm = String(Math.floor(seconds / 60)).padStart(2, "0");
@@ -152,9 +144,11 @@ export default function ActiveCallScreen() {
     <View style={styles.root}>
       <Text style={styles.name}>{peerName || "কল"}</Text>
       <Text style={styles.sub}>
-        {connected ? `${mode === "video" ? "ভিডিও" : "অডিও"} · \( {mm}: \){ss}` : "সংযোগ হচ্ছে..."}
+        {connected
+          ? `${mode === "video" ? "ভিডিও" : "অডিও"} · \( {mm}: \){ss}`
+          : "সংযোগ হচ্ছে..."}
       </Text>
-      {isExpat && (profile?.coin_debt || 0) > 0 ? (
+      {(profile?.coin_debt || 0) > 0 ? (
         <Text style={styles.debt}>বকেয়া: {profile?.coin_debt} কয়েন</Text>
       ) : null}
 
@@ -171,8 +165,7 @@ export default function ActiveCallScreen() {
       </View>
 
       <Text style={styles.hint}>
-        P2P WebRTC ল্যাপটপ বিল্ডে পূর্ণ কানেক্ট হবে। কানেক্টের পর Supabase
-        conversation লাগবে না।
+        বিলিং RPC · WebRTC ল্যাপটপ বিল্ডে পূর্ণ কানেক্ট
       </Text>
     </View>
   );
@@ -195,12 +188,7 @@ function Action({
         { backgroundColor: danger ? COLORS.danger : COLORS.card },
       ]}
     >
-      <Text
-        style={{
-          color: danger ? "#fff" : COLORS.text,
-          fontWeight: "600",
-        }}
-      >
+      <Text style={{ color: danger ? "#fff" : COLORS.text, fontWeight: "600" }}>
         {label}
       </Text>
     </TouchableOpacity>
@@ -219,16 +207,11 @@ const styles = StyleSheet.create({
   sub: { color: "#C4B5FD", marginTop: 8, fontSize: 16 },
   debt: { color: COLORS.warning, marginTop: 12 },
   actions: { marginTop: 48, width: "100%", gap: 12 },
-  btn: {
-    borderRadius: 12,
-    padding: 16,
-    alignItems: "center",
-  },
+  btn: { borderRadius: 12, padding: 16, alignItems: "center" },
   hint: {
     color: "#A78BFA",
     fontSize: 11,
     textAlign: "center",
     marginTop: 32,
-    lineHeight: 16,
   },
 });
