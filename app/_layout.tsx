@@ -61,8 +61,9 @@ export default function RootLayout() {
             "অ্যাপ ব্যবহার করতে VPN বন্ধ করুন। তারপর আবার চেষ্টা করুন।"
           );
         }
+        await supabase.rpc("refresh_expat_flag", { p_user_id: userId });
       } catch {
-        // ignore network errors
+        // ignore
       }
     }
 
@@ -81,6 +82,7 @@ export default function RootLayout() {
         <Stack.Screen name="conversation/[sessionId]" />
         <Stack.Screen name="earn" />
         <Stack.Screen name="admin" />
+        <Stack.Screen name="calls" />
       </Stack>
     </>
   );
