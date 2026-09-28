@@ -15,7 +15,8 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.mindmate.app",
       "infoPlist": {
-        "NSMicrophoneUsageDescription": "MindMate অডিও কলের জন্য মাইক্রোফোন প্রয়োজন"
+        "NSMicrophoneUsageDescription": "MindMate অডিও ও ভিডিও কলের জন্য মাইক্রোফোন প্রয়োজন",
+        "NSCameraUsageDescription": "MindMate ভিডিও কলের জন্য ক্যামেরা প্রয়োজন"
       }
     },
     "android": {
@@ -27,6 +28,7 @@
       "permissions": [
         "RECORD_AUDIO",
         "MODIFY_AUDIO_SETTINGS",
+        "CAMERA",
         "INTERNET",
         "ACCESS_NETWORK_STATE"
       ]
@@ -36,8 +38,8 @@
       [
         "react-native-webrtc",
         {
-          "cameraPermission": false,
-          "microphonePermission": "MindMate অডিও কলের জন্য মাইক্রোফোন প্রয়োজন"
+          "cameraPermission": "MindMate ভিডিও কলের জন্য ক্যামেরা প্রয়োজন",
+          "microphonePermission": "MindMate অডিও ও ভিডিও কলের জন্য মাইক্রোফোন প্রয়োজন"
         }
       ]
     ],
