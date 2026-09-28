@@ -28,13 +28,22 @@ export default function ConversationScreen() {
   const [sending, setSending] = useState(false);
   const [currentSession, setCurrentSession] = useState<Session | null>(null);
   const [settings, setSettings] = useState<AppSettings | null>(null);
-  const [hostRates, setHostRates] = useState<{ text_rate: number; call_rate: number } | null>(null);
+
+  // Expanded Host Rates & Media settings
+  const [hostMedia, setHostMedia] = useState<{
+    text_rate: number;
+    call_rate: number;
+    video_rate: number;
+    video_enabled: boolean;
+    call_enabled: boolean;
+  } | null>(null);
+
   const [giftVisible, setGiftVisible] = useState(false);
   const [giftAmount, setGiftAmount] = useState("");
   const [reportVisible, setReportVisible] = useState(false);
   const [reportText, setReportText] = useState("");
 
-  // Voice Call States & Refs
+  // Voice & Video Call States
   const [inCall, setInCall] = useState(false);
   const [muted, setMuted] = useState(false);
   const callRef = useRef<CallService | null>(null);
@@ -44,11 +53,15 @@ export default function ConversationScreen() {
 
   const isMonetizationOn = settings?.monetization_enabled ?? true;
   const textCost = isMonetizationOn
-    ? hostRates?.text_rate ?? settings?.text_coin_cost ?? COIN_RATES.TEXT
+    ? hostMedia?.text_rate ?? settings?.text_coin_cost ?? COIN_RATES.TEXT
     : 0;
 
   const callRate = isMonetizationOn
-    ? hostRates?.call_rate ?? settings?.call_coin_per_second ?? COIN_RATES.CALL_PER_SEC ?? 2
+    ? hostMedia?.call_rate ?? settings?.call_coin_per_second ?? COIN_RATES.CALL_PER_SEC ?? 2
+    : 0;
+
+  const videoRate = isMonetizationOn
+    ? hostMedia?.video_rate ?? 5
     : 0;
 
   const isHost =
@@ -79,10 +92,19 @@ export default function ConversationScreen() {
       setCurrentSession(sessionRes.data);
       const { data: hostData } = await supabase
         .from("hosts")
-        .select("text_rate, call_rate")
+        .select("text_rate, call_rate, video_rate, video_enabled, call_enabled")
         .eq("id", sessionRes.data.host_id)
         .single();
-      if (hostData) setHostRates(hostData);
+
+      if (hostData) {
+        setHostMedia({
+          text_rate: hostData.text_rate ?? 5,
+          call_rate: hostData.call_rate ?? 2,
+          video_rate: hostData.video_rate ?? 5,
+          video_enabled: hostData.video_enabled ?? true,
+          call_enabled: hostData.call_enabled ?? true,
+        });
+      }
     }
 
     if (messagesRes.data) setMessages(messagesRes.data);
@@ -114,18 +136,21 @@ export default function ConversationScreen() {
     };
   }, [sessionId]);
 
-  // Call/Billing Cleanup on Unmount
   useEffect(() => {
     return () => {
       stopBillingRef.current?.();
       callRef.current?.end("unmount");
     };
   }, []);
-
-  async function startCall() {
+        async function startCall() {
     if (!authSession?.user || !currentSession) return;
-    if (!hostRates && isMonetizationOn) {
+    if (!hostMedia && isMonetizationOn) {
       Alert.alert("অপেক্ষা", "রেট লোড হচ্ছে");
+      return;
+    }
+
+    if (hostMedia && hostMedia.call_enabled === false) {
+      Alert.alert("অনুপলব্ধ", "হোস্ট এই মুহূর্তে ভয়েস কল সুবিধা বন্ধ রেখেছেন");
       return;
     }
 
@@ -150,7 +175,6 @@ export default function ConversationScreen() {
     setInCall(true);
     await svc.start();
 
-    // শুধুমাত্র ইউজারের ব্যালেন্স থেকে কয়েন কাটা হবে
     if (authSession.user.id === currentSession.user_id) {
       stopBillingRef.current = startCallBilling({
         userId: authSession.user.id,
@@ -359,9 +383,8 @@ export default function ConversationScreen() {
         <ActivityIndicator size="large" color={COLORS.primary} />
       </View>
     );
-  }
-
-  return (
+        }
+                    return (
     <KeyboardAvoidingView
       style={{ flex: 1, backgroundColor: COLORS.background }}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -404,10 +427,10 @@ export default function ConversationScreen() {
             alignItems: "center",
             flexWrap: "wrap",
             justifyContent: "flex-end",
-            maxWidth: 180,
+            maxWidth: 220,
           }}
         >
-          {/* Call Controls */}
+          {/* Voice Call Control */}
           {!inCall ? (
             <TouchableOpacity onPress={startCall}>
               <Text style={{ color: COLORS.success, fontWeight: "600", fontSize: 13 }}>
@@ -435,6 +458,22 @@ export default function ConversationScreen() {
             </>
           )}
 
+          {/* Video Call Control */}
+          {hostMedia && hostMedia.video_enabled !== false ? (
+            <TouchableOpacity
+              onPress={() => {
+                Alert.alert(
+                  "ভিডিও কল",
+                  `রেট: ${videoRate} coin/sec · WebRTC বিল্ডে পূর্ণ সুবিধা মিলবে`
+                );
+              }}
+            >
+              <Text style={{ color: COLORS.primary, fontWeight: "600", fontSize: 13 }}>
+                Video
+              </Text>
+            </TouchableOpacity>
+          ) : null}
+
           {!isHost && (
             <TouchableOpacity onPress={() => setGiftVisible(true)}>
               <Text style={{ color: COLORS.primary, fontWeight: "600", fontSize: 13 }}>
@@ -442,6 +481,7 @@ export default function ConversationScreen() {
               </Text>
             </TouchableOpacity>
           )}
+
           {isHost && (
             <>
               <TouchableOpacity onPress={handleBlock}>
@@ -456,6 +496,7 @@ export default function ConversationScreen() {
               </TouchableOpacity>
             </>
           )}
+
           <TouchableOpacity onPress={handleEndConversation}>
             <Text style={{ color: COLORS.danger, fontWeight: "600", fontSize: 13 }}>
               End
@@ -718,4 +759,5 @@ export default function ConversationScreen() {
       </Modal>
     </KeyboardAvoidingView>
   );
-}
+        }
+          
