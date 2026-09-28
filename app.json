@@ -48,16 +48,16 @@
       "policy": "appVersion"
     },
     "updates": {
-      "url": "https://u.expo.dev/YOUR_PROJECT_ID"
+      "url": "https://u.expo.dev/382db31b-76ce-4111-a128-cbac82d9c901"
     },
     "extra": {
       "eas": {
-        "projectId": "YOUR_PROJECT_ID"
+        "projectId": "382db31b-76ce-4111-a128-cbac82d9c901"
       },
       "router": {
         "origin": false
       }
     },
-    "owner": "laki299"
+    "owner": "shafi261511s-team"
   }
 }
