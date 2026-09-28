@@ -17,7 +17,13 @@ export const COIN_RATES = {
   TEXT: 2,
   VOICE_PER_SECOND: 1,
   CALL_PER_SECOND: 2,
+  VIDEO_PER_SECOND: 3,
   AD_REWARD: 10,
   SHORT_VIDEO: 10,
   OFFERWALL_PER_CENT: 12,
+  A2A_AUDIO_PER_MIN: 5,
+  A2A_VIDEO_PER_MIN: 10,
 };
+
+/** স্থানীয় — প্রবাসী নয় */
+export const LOCAL_COUNTRY_CODES = ["BD", "PK", "IN"] as const;
