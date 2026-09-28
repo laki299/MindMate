@@ -18,6 +18,10 @@ import { Message, Session, AppSettings } from "../../lib/types";
 import { COLORS, COIN_RATES } from "../../lib/constants";
 import { CallService } from "../../services/callService";
 import { startCallBilling } from "../../services/callBilling";
+import {
+  fetchScreenshotBlockEnabled,
+  useSecureScreen,
+} from "../../lib/screenSecurity";
 
 export default function ConversationScreen() {
   const { sessionId } = useLocalSearchParams<{ sessionId: string }>();
@@ -29,7 +33,14 @@ export default function ConversationScreen() {
   const [currentSession, setCurrentSession] = useState<Session | null>(null);
   const [settings, setSettings] = useState<AppSettings | null>(null);
 
-  // Expanded Host Rates & Media settings
+  // Screen Security
+  const [secure, setSecure] = useState<boolean | null>(null);
+  useEffect(() => {
+    fetchScreenshotBlockEnabled().then(setSecure);
+  }, []);
+  useSecureScreen(secure);
+
+  // Host Rates & Media settings
   const [hostMedia, setHostMedia] = useState<{
     text_rate: number;
     call_rate: number;
@@ -142,7 +153,8 @@ export default function ConversationScreen() {
       callRef.current?.end("unmount");
     };
   }, []);
-        async function startCall() {
+
+  async function startCall() {
     if (!authSession?.user || !currentSession) return;
     if (!hostMedia && isMonetizationOn) {
       Alert.alert("অপেক্ষা", "রেট লোড হচ্ছে");
@@ -369,8 +381,7 @@ export default function ConversationScreen() {
       ]
     );
   }
-
-  if (loading) {
+      if (loading) {
     return (
       <View
         style={{
@@ -383,13 +394,15 @@ export default function ConversationScreen() {
         <ActivityIndicator size="large" color={COLORS.primary} />
       </View>
     );
-        }
-                    return (
+  }
+
+  return (
     <KeyboardAvoidingView
       style={{ flex: 1, backgroundColor: COLORS.background }}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
       keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
     >
+      {/* Header Bar */}
       <View
         style={{
           paddingTop: 50,
@@ -430,7 +443,7 @@ export default function ConversationScreen() {
             maxWidth: 220,
           }}
         >
-          {/* Voice Call Control */}
+          {/* Voice Call Controls */}
           {!inCall ? (
             <TouchableOpacity onPress={startCall}>
               <Text style={{ color: COLORS.success, fontWeight: "600", fontSize: 13 }}>
@@ -458,7 +471,7 @@ export default function ConversationScreen() {
             </>
           )}
 
-          {/* Video Call Control */}
+          {/* Video Call Button */}
           {hostMedia && hostMedia.video_enabled !== false ? (
             <TouchableOpacity
               onPress={() => {
@@ -505,6 +518,7 @@ export default function ConversationScreen() {
         </View>
       </View>
 
+      {/* Messages List */}
       <FlatList
         ref={flatListRef}
         data={messages}
@@ -539,6 +553,7 @@ export default function ConversationScreen() {
         }}
       />
 
+      {/* Input Footer Bar */}
       <View
         style={{
           flexDirection: "row",
