@@ -9,10 +9,13 @@ import {
 import { router } from "expo-router";
 import { supabase } from "../../lib/supabase";
 import { COLORS } from "../../lib/constants";
+import { sendCallInvite } from "../../lib/incomingCall";
+import { useAuthStore } from "../../stores/authStore";
 
 export default function DialerScreen() {
   const [number, setNumber] = useState("");
   const [busy, setBusy] = useState(false);
+  const { session, profile } = useAuthStore();
 
   async function startCall(type: "audio" | "video") {
     const code = number.replace(/\D/g, "");
@@ -21,30 +24,51 @@ export default function DialerScreen() {
       return;
     }
 
+    if (!session?.user) {
+      Alert.alert("ত্রুটি", "লগইন করা নেই");
+      return;
+    }
+
     setBusy(true);
-    // পরে: interstitial ad → তারপর কল
+
     const { data: peer, error } = await supabase
       .from("profiles")
       .select("id, full_name, username, phone_code")
       .eq("phone_code", code)
       .maybeSingle();
 
-    setBusy(false);
-
     if (error || !peer) {
+      setBusy(false);
       Alert.alert("পাওয়া যায়নি", "এই নম্বরে কোনো অ্যাকাউন্ট নেই");
       return;
     }
 
-    router.push({
-      pathname: "/calls/active",
-      params: {
-        peerId: peer.id,
-        peerName: peer.full_name || peer.username || code,
+    const callId = `${Date.now()}`;
+
+    try {
+      await sendCallInvite({
+        toUserId: peer.id,
+        fromId: session.user.id,
+        fromName: profile?.full_name || profile?.username || profile?.phone_code || "User",
         callType: type,
-        role: "caller",
-      },
-    });
+        callId,
+      });
+
+      router.push({
+        pathname: "/calls/active",
+        params: {
+          peerId: peer.id,
+          peerName: peer.full_name || peer.username || code,
+          callType: type,
+          role: "caller",
+          callId,
+        },
+      });
+    } catch {
+      Alert.alert("ত্রুটি", "কল ইনভাইট পাঠানো সম্ভব হয়নি");
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -135,4 +159,4 @@ export default function DialerScreen() {
       </View>
     </View>
   );
- }
+}
