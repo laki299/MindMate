@@ -34,6 +34,7 @@ export default function ProfileScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.background }}>
+      {/* Header */}
       <View
         style={{
           paddingTop: 60,
@@ -50,6 +51,7 @@ export default function ProfileScreen() {
       </View>
 
       <View style={{ padding: 20 }}>
+        {/* User Card */}
         <View
           style={{
             backgroundColor: COLORS.card,
@@ -70,13 +72,55 @@ export default function ProfileScreen() {
           >
             {profile?.full_name || "User"}
           </Text>
-          <Text style={{ color: COLORS.textSecondary, marginBottom: 12 }}>
+          <Text style={{ color: COLORS.textSecondary, marginBottom: 4 }}>
             Role: {profile?.role}
           </Text>
           <Text style={{ color: COLORS.textSecondary, marginBottom: 12 }}>
             Coin Balance: 🪙 {profile?.coin_balance ?? 0}
           </Text>
 
+          {/* MindMate Phone Code */}
+          {profile?.phone_code ? (
+            <TouchableOpacity
+              onPress={() => router.push("/calls/my-number")}
+              style={{
+                marginTop: 4,
+                marginBottom: 12,
+                backgroundColor: COLORS.background,
+                padding: 10,
+                borderRadius: 10,
+                borderWidth: 1,
+                borderColor: COLORS.border,
+              }}
+            >
+              <Text style={{ color: COLORS.primary, fontWeight: "600", fontSize: 16 }}>
+                📞 {profile.phone_code}
+              </Text>
+              <Text style={{ color: COLORS.textSecondary, fontSize: 12, marginTop: 2 }}>
+                MindMate নম্বর · ট্যাপ করে শেয়ার
+              </Text>
+            </TouchableOpacity>
+          ) : null}
+
+          {/* Coin Debt */}
+          {(profile?.coin_debt || 0) > 0 ? (
+            <Text style={{ color: COLORS.warning, marginBottom: 8, fontWeight: "600" }}>
+              বকেয়া কয়েন: {profile?.coin_debt}
+            </Text>
+          ) : null}
+
+          {/* Expat Status */}
+          {profile?.is_expat ? (
+            <Text style={{ color: COLORS.textSecondary, fontSize: 12, marginBottom: 12 }}>
+              প্রবাসী অ্যাকাউন্ট · হোস্ট ক্যাবিন চালু
+            </Text>
+          ) : (
+            <Text style={{ color: COLORS.textSecondary, fontSize: 12, marginBottom: 12 }}>
+              স্থানীয় · হোস্ট ক্যাবিন নেই · A2A কল ব্যবহার করো
+            </Text>
+          )}
+
+          {/* UUID Copy */}
           <TouchableOpacity
             onPress={handleCopyUUID}
             style={{
@@ -103,6 +147,24 @@ export default function ProfileScreen() {
             </Text>
           </TouchableOpacity>
         </View>
+
+        {/* Menu Items */}
+        <TouchableOpacity
+          onPress={() => router.push("/(tabs)/calls")}
+          style={{
+            backgroundColor: COLORS.card,
+            borderRadius: 12,
+            padding: 16,
+            alignItems: "center",
+            marginBottom: 12,
+            borderWidth: 1,
+            borderColor: COLORS.border,
+          }}
+        >
+          <Text style={{ color: COLORS.primary, fontWeight: "600", fontSize: 16 }}>
+            📞 কল / কন্টাক্টস
+          </Text>
+        </TouchableOpacity>
 
         {profile?.role === "admin" && (
           <TouchableOpacity
@@ -154,6 +216,7 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         )}
 
+        {/* Logout */}
         <TouchableOpacity
           onPress={handleLogout}
           style={{
@@ -161,6 +224,7 @@ export default function ProfileScreen() {
             borderRadius: 12,
             padding: 16,
             alignItems: "center",
+            marginTop: 8,
           }}
         >
           <Text
