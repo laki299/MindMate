@@ -1,18 +1,22 @@
 export type UserRole = "user" | "host" | "admin";
 export type HostStatus = "available" | "busy" | "offline";
 export type SessionStatus = "waiting" | "active" | "ended" | "expired";
-export type ServiceType = "text" | "voice" | "audio_call";
+export type ServiceType = "text" | "voice" | "audio_call" | "video_call";
 
 export type TransactionType =
   | "ad_reward"
   | "text"
   | "voice"
   | "audio_call"
+  | "video_call"
+  | "a2a_call"
   | "withdrawal"
   | "admin_adjustment"
   | "gift";
 
 export type WithdrawalStatus = "pending" | "approved" | "paid" | "rejected";
+export type A2ACallType = "audio" | "video";
+export type A2ACallStatus = "missed" | "answered" | "rejected" | "failed";
 
 export interface Profile {
   id: string;
@@ -22,6 +26,9 @@ export interface Profile {
   avatar_url: string | null;
   bio: string | null;
   coin_balance: number;
+  coin_debt?: number;
+  phone_code?: string | null;
+  is_expat?: boolean;
   is_blocked: boolean;
   is_banned?: boolean;
   country_code?: string | null;
@@ -42,8 +49,10 @@ export interface Host {
   text_enabled: boolean;
   voice_enabled: boolean;
   call_enabled: boolean;
+  video_enabled?: boolean;
   text_rate: number;
   call_rate: number;
+  video_rate?: number;
   total_earned: number;
   total_withdrawn: number;
   is_active: boolean;
@@ -81,6 +90,31 @@ export interface Message {
   created_at: string;
 }
 
+export interface Contact {
+  id: string;
+  owner_id: string;
+  peer_id: string | null;
+  peer_phone_code: string;
+  custom_name: string | null;
+  created_at: string;
+  peer?: Pick<Profile, "id" | "full_name" | "username" | "avatar_url" | "phone_code"> | null;
+}
+
+export interface CallLog {
+  id: string;
+  caller_id: string;
+  callee_id: string;
+  call_type: A2ACallType;
+  status: A2ACallStatus;
+  duration_seconds: number;
+  coins_charged: number;
+  started_at: string | null;
+  ended_at: string | null;
+  created_at: string;
+  caller?: Pick<Profile, "id" | "full_name" | "username" | "phone_code"> | null;
+  callee?: Pick<Profile, "id" | "full_name" | "username" | "phone_code"> | null;
+}
+
 export interface AppSettings {
   id: number;
   text_coin_cost: number;
@@ -101,6 +135,8 @@ export interface AppSettings {
   short_video_max_per_minute?: number;
   short_video_max_consecutive?: number;
   short_video_batch_cooldown_minutes?: number;
+  a2a_audio_coins_per_min?: number;
+  a2a_video_coins_per_min?: number;
 }
 
 export interface AppStats {
@@ -139,6 +175,16 @@ export type Database = {
         Row: Message;
         Insert: Partial<Message>;
         Update: Partial<Message>;
+      };
+      contacts: {
+        Row: Contact;
+        Insert: Partial<Contact>;
+        Update: Partial<Contact>;
+      };
+      call_logs: {
+        Row: CallLog;
+        Insert: Partial<CallLog>;
+        Update: Partial<CallLog>;
       };
       app_settings: {
         Row: AppSettings;
