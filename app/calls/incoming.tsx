@@ -1,6 +1,11 @@
+import { useEffect, useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { COLORS } from "../../lib/constants";
+import {
+  fetchScreenshotBlockEnabled,
+  useSecureScreen,
+} from "../../lib/screenSecurity";
 
 export default function IncomingCallScreen() {
   const { fromId, fromName, callType, callId } = useLocalSearchParams<{
@@ -9,6 +14,13 @@ export default function IncomingCallScreen() {
     callType: "audio" | "video";
     callId: string;
   }>();
+
+  // Screen Security
+  const [secure, setSecure] = useState<boolean | null>(null);
+  useEffect(() => {
+    fetchScreenshotBlockEnabled().then(setSecure);
+  }, []);
+  useSecureScreen(secure);
 
   function accept() {
     router.replace({
