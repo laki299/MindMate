@@ -11,6 +11,10 @@ import { supabase } from "../../lib/supabase";
 import { useAuthStore } from "../../stores/authStore";
 import { COLORS } from "../../lib/constants";
 import { CallService } from "../../services/callService";
+import {
+  fetchScreenshotBlockEnabled,
+  useSecureScreen,
+} from "../../lib/screenSecurity";
 
 export default function ActiveCallScreen() {
   const { peerId, peerName, callType, role } = useLocalSearchParams<{
@@ -25,6 +29,13 @@ export default function ActiveCallScreen() {
   const [seconds, setSeconds] = useState(0);
   const [muted, setMuted] = useState(false);
   const [connected, setConnected] = useState(false);
+
+  // Screen Security
+  const [secure, setSecure] = useState<boolean | null>(null);
+  useEffect(() => {
+    fetchScreenshotBlockEnabled().then(setSecure);
+  }, []);
+  useSecureScreen(secure);
 
   const callRef = useRef<CallService | null>(null);
   const logIdRef = useRef<string | null>(null);
@@ -49,7 +60,7 @@ export default function ActiveCallScreen() {
   async function startSession() {
     if (!session?.user || !peerId) return;
 
-    // ১. Call Logs এন্ট্রি তৈরি করা (শুধুমাত্র കলারের জন্য)
+    // ১. Call Logs এন্ট্রি তৈরি করা (শুধুমাত্র কলারের জন্য)
     if (isCaller) {
       const { data } = await supabase
         .from("call_logs")
@@ -83,7 +94,6 @@ export default function ActiveCallScreen() {
     try {
       await svc.start();
     } catch (e) {
-      // Expo Go-তে নেটিভ ড্রাইভার না থাকলে ক্যাচ করবে, তবে UI চলতে থাকবে
       console.log("CallService start error (Expo Go / Fallback):", e);
     }
 
@@ -258,3 +268,4 @@ const styles = StyleSheet.create({
     marginTop: 32,
   },
 });
+         
