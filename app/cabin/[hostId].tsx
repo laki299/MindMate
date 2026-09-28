@@ -241,6 +241,9 @@ export default function CabinScreen() {
           <Text style={{ color: COLORS.textSecondary, marginTop: 4 }}>
             📞 Call: {host.call_rate ?? 2} Coin / সেকেন্ড
           </Text>
+          <Text style={{ color: COLORS.textSecondary, marginTop: 4 }}>
+            🎥 Video: {host.video_rate ?? 3} Coin / সেকেন্ড
+          </Text>
         </View>
 
         {/* Queue */}
@@ -322,4 +325,4 @@ export default function CabinScreen() {
       </ScrollView>
     </View>
   );
- }
+}
