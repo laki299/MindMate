@@ -10,6 +10,7 @@ export default function AdminLayout() {
       <Stack.Screen name="monetization" />
       <Stack.Screen name="reports" />
       <Stack.Screen name="hosts" />
+      <Stack.Screen name="privacy" />
     </Stack>
   );
 }
