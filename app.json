@@ -5,12 +5,11 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
-    "newArchEnabled": false,
+    "userInterfaceStyle": "automatic",
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#0A0A5C"
+      "backgroundColor": "#F5F3FF"
     },
     "ios": {
       "supportsTablet": true,
@@ -23,7 +22,7 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#0A0A5C"
+        "backgroundColor": "#F5F3FF"
       },
       "package": "com.mindmate.app",
       "permissions": [
@@ -36,12 +35,12 @@
     },
     "plugins": [
       "expo-router",
+      "expo-screen-capture",
       [
-        "expo-build-properties",
+        "@config-plugins/react-native-webrtc",
         {
-          "android": {
-            "kotlinVersion": "1.9.25"
-          }
+          "cameraPermission": "MindMate ভিডিও কলের জন্য ক্যামেরা প্রয়োজন",
+          "microphonePermission": "MindMate অডিও ও ভিডিও কলের জন্য মাইক্রোফোন প্রয়োজন"
         }
       ]
     ],
