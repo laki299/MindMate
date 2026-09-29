@@ -4,25 +4,41 @@ import {
   Text,
   FlatList,
   TouchableOpacity,
-  Image,
-  ActivityIndicator,
+  TextInput,
   RefreshControl,
+  ActivityIndicator,
+  Image,
+  Alert,
+  StyleSheet,
 } from "react-native";
 import { router, useFocusEffect } from "expo-router";
 import { supabase } from "../../lib/supabase";
 import { useAuthStore } from "../../stores/authStore";
-import { CallLog, Host } from "../../lib/types";
-import { displayContactName } from "../../lib/expat";
-import { COLORS } from "../../lib/constants";
+import { useSettingsStore } from "../../stores/settingsStore";
+import { t } from "../../lib/i18n";
+import { CallLog, Contact } from "../../lib/types";
+import { resolveContactDisplay } from "../../lib/displayName";
+import { sendCallInvite } from "../../lib/incomingCall";
 
-type HomeRow =
-  | { kind: "call"; item: CallLog }
-  | { kind: "host"; item: Host };
+type TabMain = "calls" | "contacts";
+type CallFilter = "all" | "missed" | "outgoing" | "incoming";
+
+type LogRow = CallLog & {
+  peerName?: string;
+  peerAvatar?: string | null;
+  peerPhone?: string | null;
+};
 
 export default function HomeScreen() {
-  const { profile, session } = useAuthStore();
-  const isExpat = !!profile?.is_expat;
-  const [rows, setRows] = useState<HomeRow[]>([]);
+  const { session, profile } = useAuthStore();
+  const { lang, theme } = useSettingsStore();
+  const s = t(lang);
+
+  const [main, setMain] = useState<TabMain>("calls");
+  const [filter, setFilter] = useState<CallFilter>("all");
+  const [logs, setLogs] = useState<LogRow[]>([]);
+  const [contacts, setContacts] = useState<any[]>([]);
+  const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -32,32 +48,110 @@ export default function HomeScreen() {
       return;
     }
     const uid = session.user.id;
-    const list: HomeRow[] = [];
 
-    // সবার জন্য: সাম্প্রতিক কল (Imo-র মতো লিস্ট)
-    const { data: logs } = await supabase
+    const { data: callData } = await supabase
       .from("call_logs")
       .select("*")
       .or(`caller_id.eq.${uid},callee_id.eq.${uid}`)
       .order("created_at", { ascending: false })
-      .limit(40);
+      .limit(80);
 
-    (logs || []).forEach((item) => {
-      list.push({ kind: "call", item: item as CallLog });
-    });
+    const raw = (callData as CallLog[]) || [];
+    const otherIds = [
+      ...new Set(
+        raw.map((c) => (c.caller_id === uid ? c.callee_id : c.caller_id))
+      ),
+    ];
 
-    // শুধু প্রবাসী: হোস্ট ক্যাবিন সেকশন
-    if (isExpat) {
-      const { data: hosts } = await supabase
-        .from("hosts")
-        .select("*")
-        .eq("is_active", true)
-        .order("status", { ascending: true })
-        .limit(20);
-      (hosts || []).forEach((h) => list.push({ kind: "host", item: h as Host }));
+    let profileMap: Record<
+      string,
+      { full_name: string | null; username: string | null; avatar_url: string | null; phone_code: string | null }
+    > = {};
+
+    if (otherIds.length) {
+      const { data: peers } = await supabase
+        .from("profiles")
+        .select("id, full_name, username, avatar_url, phone_code")
+        .in("id", otherIds);
+      (peers || []).forEach((p: any) => {
+        profileMap[p.id] = p;
+      });
     }
 
-    setRows(list);
+    const { data: myContacts } = await supabase
+      .from("contacts")
+      .select("*")
+      .eq("owner_id", uid);
+
+    const contactByPeer: Record<string, any> = {};
+    const contactByPhone: Record<string, any> = {};
+    (myContacts || []).forEach((c: any) => {
+      if (c.peer_id) contactByPeer[c.peer_id] = c;
+      if (c.peer_phone_code) contactByPhone[c.peer_phone_code] = c;
+    });
+
+    const enriched: LogRow[] = raw.map((c) => {
+      const otherId = c.caller_id === uid ? c.callee_id : c.caller_id;
+      const p = profileMap[otherId];
+      const saved =
+        contactByPeer[otherId] ||
+        (p?.phone_code ? contactByPhone[p.phone_code] : null);
+      const disp = resolveContactDisplay({
+        customName: saved?.custom_name,
+        contactAvatar: saved?.contact_avatar,
+        profileName: p?.full_name,
+        profileUsername: p?.username,
+        profileAvatar: p?.avatar_url,
+        phoneCode: p?.phone_code,
+        unknownLabel: s.unknownCaller,
+      });
+      return {
+        ...c,
+        peerName: disp.name,
+        peerAvatar: disp.avatarUrl,
+        peerPhone: p?.phone_code || saved?.peer_phone_code,
+      };
+    });
+
+    setLogs(enriched);
+
+    const contactRows = await Promise.all(
+      ((myContacts as Contact[]) || []).map(async (c) => {
+        let peer: any = null;
+        if (c.peer_id) {
+          const { data } = await supabase
+            .from("profiles")
+            .select("id, full_name, username, avatar_url, phone_code")
+            .eq("id", c.peer_id)
+            .maybeSingle();
+          peer = data;
+        } else if (c.peer_phone_code) {
+          const { data } = await supabase
+            .from("profiles")
+            .select("id, full_name, username, avatar_url, phone_code")
+            .eq("phone_code", c.peer_phone_code)
+            .maybeSingle();
+          peer = data;
+        }
+        const disp = resolveContactDisplay({
+          customName: c.custom_name,
+          contactAvatar: (c as any).contact_avatar,
+          profileName: peer?.full_name,
+          profileUsername: peer?.username,
+          profileAvatar: peer?.avatar_url,
+          phoneCode: c.peer_phone_code,
+          unknownLabel: s.unknownCaller,
+        });
+        return {
+          ...c,
+          peer,
+          displayName: disp.name,
+          displayAvatar: disp.avatarUrl,
+        };
+      })
+    );
+
+    setContacts(contactRows);
     setLoading(false);
     setRefreshing(false);
   }
@@ -66,319 +160,516 @@ export default function HomeScreen() {
     useCallback(() => {
       setLoading(true);
       load();
-    }, [session?.user?.id, isExpat])
+    }, [session?.user?.id, lang])
   );
 
-  function peerLabel(item: CallLog) {
-    const uid = session?.user?.id;
-    const isOut = item.caller_id === uid;
-    const otherId = isOut ? item.callee_id : item.caller_id;
-    return {
-      isOut,
-      otherId,
-      title: isOut ? "আউটগোয়িং" : "ইনকামিং",
-    };
+  async function startCall(
+    peerId: string | null | undefined,
+    peerPhone: string | null | undefined,
+    peerName: string,
+    type: "audio" | "video"
+  ) {
+    if (!session?.user) return;
+
+    let targetId = peerId || null;
+    let name = peerName;
+
+    if (!targetId && peerPhone) {
+      const code = peerPhone.replace(/\D/g, "");
+      const { data: peer } = await supabase
+        .from("profiles")
+        .select("id, full_name, username, phone_code")
+        .eq("phone_code", code)
+        .maybeSingle();
+      if (!peer) {
+        Alert.alert("", s.notFound);
+        return;
+      }
+      targetId = peer.id;
+      name = peer.full_name || peer.username || code;
+    }
+
+    if (!targetId) {
+      Alert.alert("", s.notFound);
+      return;
+    }
+
+    const callId = `${Date.now()}`;
+    try {
+      await sendCallInvite({
+        toUserId: targetId,
+        fromId: session.user.id,
+        fromName:
+          profile?.full_name ||
+          profile?.username ||
+          profile?.phone_code ||
+          "User",
+        callType: type,
+        callId,
+      });
+    } catch {
+      /* peer offline */
+    }
+
+    router.push({
+      pathname: "/calls/active",
+      params: {
+        peerId: targetId,
+        peerName: name,
+        callType: type,
+        role: "caller",
+        callId,
+      },
+    });
   }
 
-  if (loading && rows.length === 0) {
+  const uid = session?.user?.id;
+
+  const filteredLogs = logs.filter((c) => {
+    if (!uid) return true;
+    if (filter === "missed") return c.status === "missed";
+    if (filter === "outgoing") return c.caller_id === uid;
+    if (filter === "incoming") return c.callee_id === uid;
+    return true;
+  });
+
+  const filteredContacts = contacts.filter((c) => {
+    if (!search.trim()) return true;
+    const q = search.toLowerCase();
     return (
-      <View
-        style={{
-          flex: 1,
-          justifyContent: "center",
-          alignItems: "center",
-          backgroundColor: COLORS.background,
-        }}
-      >
-        <ActivityIndicator size="large" color={COLORS.primary} />
+      (c.displayName || "").toLowerCase().includes(q) ||
+      (c.peer_phone_code || "").includes(q)
+    );
+  });
+
+  if (loading && logs.length === 0 && contacts.length === 0) {
+    return (
+      <View style={[styles.center, { backgroundColor: theme.bg }]}>
+        <ActivityIndicator color={theme.primary} size="large" />
       </View>
     );
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: COLORS.background }}>
-      {/* Header — Imo স্টাইল */}
+    <View style={{ flex: 1, backgroundColor: theme.bg }}>
+      {/* Header */}
       <View
-        style={{
-          paddingTop: 56,
-          paddingHorizontal: 16,
-          paddingBottom: 12,
-          backgroundColor: COLORS.card,
-          borderBottomWidth: 1,
-          borderBottomColor: COLORS.border,
-        }}
+        style={[
+          styles.header,
+          { backgroundColor: theme.card, borderBottomColor: theme.border },
+        ]}
       >
-        <View
-          style={{
-            flexDirection: "row",
-            justifyContent: "space-between",
-            alignItems: "center",
-          }}
-        >
-          <Text style={{ fontSize: 24, fontWeight: "700", color: COLORS.text }}>
-            MindMate
-          </Text>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-            <View
-              style={{
-                backgroundColor: "#FEF3C7",
-                paddingHorizontal: 10,
-                paddingVertical: 5,
-                borderRadius: 16,
-              }}
-            >
-              <Text style={{ fontWeight: "600", color: "#D97706" }}>
-                🪙 {profile?.coin_balance ?? 0}
-              </Text>
-            </View>
-            <TouchableOpacity onPress={() => router.push("/calls/dialer")}>
-              <Text style={{ fontSize: 22 }}>⌨️</Text>
-            </TouchableOpacity>
+        <View style={styles.headerRow}>
+          <Image
+            source={
+              profile?.avatar_url
+                ? { uri: profile.avatar_url }
+                : require("../../assets/icon.png")
+            }
+            style={[styles.avatar, { backgroundColor: theme.softPurple }]}
+          />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.brand}>
+              <Text style={{ color: theme.primaryDark }}>Mind</Text>
+              <Text style={{ color: theme.primary }}>Mate</Text>
+            </Text>
+            <Text style={{ color: theme.textMuted, fontSize: 12 }}>
+              {s.safeSecure}
+            </Text>
           </View>
+          <TouchableOpacity
+            onPress={() => router.push("/calls/save-contact")}
+            activeOpacity={0.85}
+            style={[styles.addBtn, { backgroundColor: theme.primary }]}
+          >
+            <Text style={styles.addBtnText}>+ {s.addContact}</Text>
+          </TouchableOpacity>
         </View>
 
-        {profile?.phone_code ? (
-          <TouchableOpacity
-            onPress={() => router.push("/calls/my-number")}
-            style={{ marginTop: 8 }}
-          >
-            <Text style={{ color: COLORS.primary, fontWeight: "600" }}>
-              আমার নম্বর: {profile.phone_code}
-            </Text>
-          </TouchableOpacity>
-        ) : (
-          <Text style={{ color: COLORS.warning, marginTop: 8, fontSize: 13 }}>
-            নম্বর তৈরি হচ্ছে… একবার অ্যাপ বন্ধ-খোলো বা পুল-টু-রিফ্রেশ
-          </Text>
+        <View style={styles.mainTabs}>
+          <MainChip
+            active={main === "calls"}
+            label={`📞  ${s.callList}`}
+            onPress={() => setMain("calls")}
+            theme={theme}
+          />
+          <MainChip
+            active={main === "contacts"}
+            label={`👥  ${s.contactList}`}
+            onPress={() => setMain("contacts")}
+            theme={theme}
+          />
+        </View>
+
+        {main === "calls" && (
+          <View style={styles.filterRow}>
+            {(
+              [
+                ["all", s.all],
+                ["missed", s.missed],
+                ["outgoing", s.outgoing],
+                ["incoming", s.incoming],
+              ] as const
+            ).map(([k, label]) => (
+              <FilterChip
+                key={k}
+                active={filter === k}
+                label={label}
+                onPress={() => setFilter(k)}
+                theme={theme}
+              />
+            ))}
+          </View>
         )}
 
-        {profile?.role === "user" && (
-          <TouchableOpacity
-            onPress={() => router.push("/earn")}
-            style={{
-              marginTop: 12,
-              backgroundColor: COLORS.primary,
-              borderRadius: 12,
-              paddingVertical: 10,
-              alignItems: "center",
-            }}
-          >
-            <Text style={{ color: "#fff", fontWeight: "700" }}>
-              🎁 ফ্রি কয়েন জমা
-            </Text>
-          </TouchableOpacity>
+        {main === "contacts" && (
+          <TextInput
+            value={search}
+            onChangeText={setSearch}
+            placeholder={s.searchContact}
+            placeholderTextColor={theme.textMuted}
+            style={[
+              styles.search,
+              {
+                backgroundColor: theme.inputBg,
+                color: theme.text,
+                borderColor: theme.border,
+              },
+            ]}
+          />
         )}
       </View>
+                {main === "calls" ? (
+        <FlatList
+          data={filteredLogs}
+          keyExtractor={(i) => i.id}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => {
+                setRefreshing(true);
+                load();
+              }}
+              colors={[theme.primary]}
+            />
+          }
+          contentContainerStyle={{ padding: 14, paddingBottom: 48 }}
+          ListEmptyComponent={
+            <Text style={[styles.empty, { color: theme.textMuted }]}>
+              {s.emptyCalls}
+            </Text>
+          }
+          renderItem={({ item }) => {
+            const isOut = item.caller_id === uid;
+            const otherId = isOut ? item.callee_id : item.caller_id;
+            const statusLabel =
+              item.status === "missed"
+                ? s.missed
+                : isOut
+                ? s.outgoing
+                : s.incoming;
+            const statusColor =
+              item.status === "missed"
+                ? theme.danger
+                : isOut
+                ? theme.success
+                : theme.primaryDark;
 
-      <FlatList
-        data={rows}
-        keyExtractor={(r, i) =>
-          r.kind === "call" ? `c-${r.item.id}` : `h-${r.item.id}-${i}`
-        }
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={() => {
-              setRefreshing(true);
-              load();
-            }}
-            colors={[COLORS.primary]}
-          />
-        }
-        contentContainerStyle={{ padding: 12, paddingBottom: 40 }}
-        ListHeaderComponent={
-          isExpat ? (
-            <Text
-              style={{
-                color: COLORS.textSecondary,
-                marginBottom: 8,
-                marginLeft: 4,
-                fontSize: 13,
-              }}
-            >
-              সাম্প্রতিক কল · নিচে হোস্ট ক্যাবিন (প্রবাসী)
-            </Text>
-          ) : (
-            <Text
-              style={{
-                color: COLORS.textSecondary,
-                marginBottom: 8,
-                marginLeft: 4,
-                fontSize: 13,
-              }}
-            >
-              সাম্প্রতিক কল · ডায়ালার থেকে নতুন কল
-            </Text>
-          )
-        }
-        ListEmptyComponent={
-          <View style={{ alignItems: "center", marginTop: 48, padding: 20 }}>
-            <Text style={{ fontSize: 40, marginBottom: 12 }}>📞</Text>
-            <Text
-              style={{
-                color: COLORS.text,
-                fontWeight: "600",
-                fontSize: 16,
-                marginBottom: 8,
-              }}
-            >
-              এখনো কোনো কল নেই
-            </Text>
-            <Text
-              style={{
-                color: COLORS.textSecondary,
-                textAlign: "center",
-                lineHeight: 20,
-                marginBottom: 16,
-              }}
-            >
-              Imo-র মতো ১০ ডিজিট নম্বর দিয়ে কল করো। কন্টাক্ট সেভ করতে Calls ট্যাব
-              ব্যবহার করো।
-            </Text>
-            <TouchableOpacity
-              onPress={() => router.push("/calls/dialer")}
-              style={{
-                backgroundColor: COLORS.primary,
-                borderRadius: 12,
-                paddingVertical: 12,
-                paddingHorizontal: 24,
-              }}
-            >
-              <Text style={{ color: "#fff", fontWeight: "600" }}>
-                ডায়ালার খুলো
-              </Text>
-            </TouchableOpacity>
-          </View>
-        }
-        renderItem={({ item }) => {
-          if (item.kind === "host") {
-            const h = item.item;
             return (
-              <TouchableOpacity
-                onPress={() => router.push(`/cabin/${h.id}`)}
-                style={cardStyle}
+              <View
+                style={[
+                  styles.card,
+                  { backgroundColor: theme.card, borderColor: theme.border },
+                ]}
               >
+                <TouchableOpacity
+                  style={{ flexDirection: "row", alignItems: "center", flex: 1 }}
+                  onPress={() =>
+                    startCall(
+                      otherId,
+                      item.peerPhone,
+                      item.peerName || s.unknownCaller,
+                      "audio"
+                    )
+                  }
+                  activeOpacity={0.75}
+                >
+                  {item.peerAvatar ? (
+                    <Image
+                      source={{ uri: item.peerAvatar }}
+                      style={styles.rowAvatar}
+                    />
+                  ) : (
+                    <View
+                      style={[
+                        styles.rowAvatar,
+                        {
+                          backgroundColor: theme.softPurple,
+                          alignItems: "center",
+                          justifyContent: "center",
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={{
+                          fontWeight: "800",
+                          color: theme.primary,
+                          fontSize: 18,
+                        }}
+                      >
+                        {(item.peerName || "?").charAt(0).toUpperCase()}
+                      </Text>
+                    </View>
+                  )}
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.rowName, { color: theme.text }]}>
+                      {item.peerName}
+                    </Text>
+                    <Text style={{ color: statusColor, fontSize: 12, marginTop: 2 }}>
+                      {statusLabel}
+                      {item.peerPhone ? ` · ${item.peerPhone}` : ""}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+
+                <View style={styles.callActions}>
+                  <TouchableOpacity
+                    onPress={() =>
+                      startCall(
+                        otherId,
+                        item.peerPhone,
+                        item.peerName || s.unknownCaller,
+                        "audio"
+                      )
+                    }
+                    style={[styles.roundBtn, { backgroundColor: theme.success }]}
+                  >
+                    <Text style={{ fontSize: 16 }}>📞</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() =>
+                      startCall(
+                        otherId,
+                        item.peerPhone,
+                        item.peerName || s.unknownCaller,
+                        "video"
+                      )
+                    }
+                    style={[styles.roundBtn, { backgroundColor: theme.primary }]}
+                  >
+                    <Text style={{ fontSize: 16 }}>📹</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            );
+          }}
+        />
+      ) : (
+        <FlatList
+          data={filteredContacts}
+          keyExtractor={(i) => i.id}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => {
+                setRefreshing(true);
+                load();
+              }}
+              colors={[theme.primary]}
+            />
+          }
+          contentContainerStyle={{ padding: 14, paddingBottom: 48 }}
+          ListHeaderComponent={
+            <Text style={{ color: theme.textMuted, marginBottom: 10, marginLeft: 4 }}>
+              {s.totalContacts}: {contacts.length}
+            </Text>
+          }
+          ListEmptyComponent={
+            <Text style={[styles.empty, { color: theme.textMuted }]}>
+              {s.emptyContacts}
+            </Text>
+          }
+          renderItem={({ item }) => (
+            <View
+              style={[
+                styles.card,
+                { backgroundColor: theme.card, borderColor: theme.border },
+              ]}
+            >
+              {item.displayAvatar ? (
                 <Image
-                  source={{
-                    uri:
-                      h.photo_url ||
-                      "https://ui-avatars.com/api/?name=" +
-                        encodeURIComponent(h.display_name) +
-                        "&background=7C3AED&color=fff",
-                  }}
-                  style={{
-                    width: 48,
-                    height: 48,
-                    borderRadius: 24,
-                    marginRight: 12,
-                  }}
+                  source={{ uri: item.displayAvatar }}
+                  style={styles.rowAvatar}
                 />
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontWeight: "600", color: COLORS.text }}>
-                    🏠 {h.display_name}
-                  </Text>
-                  <Text style={{ color: COLORS.textSecondary, fontSize: 12 }}>
-                    হোস্ট ক্যাবিন · {h.status}
+              ) : (
+                <View
+                  style={[
+                    styles.rowAvatar,
+                    {
+                      backgroundColor: theme.softPurple,
+                      alignItems: "center",
+                      justifyContent: "center",
+                    },
+                  ]}
+                >
+                  <Text
+                    style={{
+                      fontWeight: "800",
+                      color: theme.primary,
+                      fontSize: 18,
+                    }}
+                  >
+                    {(item.displayName || "?").charAt(0).toUpperCase()}
                   </Text>
                 </View>
-                <Text style={{ color: COLORS.primary }}>›</Text>
-              </TouchableOpacity>
-            );
-          }
-
-          const c = item.item;
-          const { isOut, otherId } = peerLabel(c);
-          const name = displayContactName(
-            null,
-            null,
-            null,
-            isOut ? "কল করা" : "কল এসেছিল"
-          );
-
-          return (
-            <TouchableOpacity
-              onPress={() =>
-                router.push({
-                  pathname: "/calls/active",
-                  params: {
-                    peerId: otherId,
-                    peerName: name,
-                    callType: c.call_type || "audio",
-                    role: "caller",
-                  },
-                })
-              }
-              style={cardStyle}
-            >
-              <View
-                style={{
-                  width: 48,
-                  height: 48,
-                  borderRadius: 24,
-                  backgroundColor: "#EDE9FE",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  marginRight: 12,
-                }}
-              >
-                <Text style={{ fontSize: 20 }}>{isOut ? "↗" : "↙"}</Text>
-              </View>
+              )}
               <View style={{ flex: 1 }}>
-                <Text style={{ fontWeight: "600", color: COLORS.text }}>
-                  {isOut ? "আউটগোয়িং" : "ইনকামিং"} ·{" "}
-                  {c.call_type === "video" ? "ভিডিও" : "অডিও"}
+                <Text style={[styles.rowName, { color: theme.text }]}>
+                  {item.displayName}
                 </Text>
-                <Text
-                  style={{
-                    color:
-                      c.status === "missed"
-                        ? COLORS.danger
-                        : COLORS.textSecondary,
-                    fontSize: 12,
-                    marginTop: 2,
-                  }}
-                >
-                  {c.status}
-                  {c.duration_seconds ? ` · ${c.duration_seconds}s` : ""}
+                <Text style={{ color: theme.textMuted, fontSize: 13 }}>
+                  {item.peer_phone_code}
                 </Text>
               </View>
-              <TouchableOpacity
-                onPress={() =>
-                  router.push({
-                    pathname: "/calls/active",
-                    params: {
-                      peerId: otherId,
-                      peerName: "Callback",
-                      callType: "audio",
-                      role: "caller",
-                    },
-                  })
-                }
-                style={{
-                  backgroundColor: COLORS.success,
-                  borderRadius: 8,
-                  paddingHorizontal: 10,
-                  paddingVertical: 6,
-                }}
-              >
-                <Text style={{ color: "#fff", fontSize: 12 }}>কল</Text>
-              </TouchableOpacity>
-            </TouchableOpacity>
-          );
-        }}
-      />
+              <View style={styles.callActions}>
+                <TouchableOpacity
+                  onPress={() =>
+                    startCall(
+                      item.peer_id || item.peer?.id,
+                      item.peer_phone_code,
+                      item.displayName,
+                      "audio"
+                    )
+                  }
+                  style={[styles.roundBtn, { backgroundColor: theme.success }]}
+                >
+                  <Text style={{ fontSize: 16 }}>📞</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() =>
+                    startCall(
+                      item.peer_id || item.peer?.id,
+                      item.peer_phone_code,
+                      item.displayName,
+                      "video"
+                    )
+                  }
+                  style={[styles.roundBtn, { backgroundColor: theme.primary }]}
+                >
+                  <Text style={{ fontSize: 16 }}>📹</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+        />
+      )}
     </View>
   );
 }
 
-const cardStyle = {
-  backgroundColor: COLORS.card,
-  borderRadius: 14,
-  padding: 14,
-  marginBottom: 10,
-  flexDirection: "row" as const,
-  alignItems: "center" as const,
-  borderWidth: 1,
-  borderColor: COLORS.border,
-};
-  
+function MainChip({ active, label, onPress, theme }: any) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.85}
+      style={{
+        flex: 1,
+        backgroundColor: active ? theme.primary : theme.inputBg,
+        borderRadius: 22,
+        paddingVertical: 11,
+        alignItems: "center",
+        borderWidth: 1,
+        borderColor: active ? theme.primary : theme.border,
+      }}
+    >
+      <Text
+        style={{
+          color: active ? "#fff" : theme.text,
+          fontWeight: "700",
+          fontSize: 13,
+        }}
+      >
+        {label}
+      </Text>
+    </TouchableOpacity>
+  );
+}
+
+function FilterChip({ active, label, onPress, theme }: any) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      style={{
+        backgroundColor: active ? theme.primary : theme.inputBg,
+        borderRadius: 16,
+        paddingHorizontal: 12,
+        paddingVertical: 7,
+        borderWidth: 1,
+        borderColor: active ? theme.primary : theme.border,
+      }}
+    >
+      <Text
+        style={{
+          color: active ? "#fff" : theme.text,
+          fontWeight: "600",
+          fontSize: 12,
+        }}
+      >
+        {label}
+      </Text>
+    </TouchableOpacity>
+  );
+}
+
+const styles = StyleSheet.create({
+  center: { flex: 1, justifyContent: "center", alignItems: "center" },
+  header: {
+    paddingTop: 52,
+    paddingHorizontal: 16,
+    paddingBottom: 14,
+    borderBottomWidth: 1,
+  },
+  headerRow: { flexDirection: "row", alignItems: "center" },
+  avatar: { width: 46, height: 46, borderRadius: 23, marginRight: 12 },
+  brand: { fontSize: 20, fontWeight: "800" },
+  addBtn: {
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+  },
+  addBtnText: { color: "#fff", fontWeight: "700", fontSize: 11 },
+  mainTabs: { flexDirection: "row", marginTop: 14, gap: 10 },
+  filterRow: {
+    flexDirection: "row",
+    marginTop: 12,
+    gap: 8,
+    flexWrap: "wrap",
+  },
+  search: {
+    marginTop: 12,
+    borderRadius: 22,
+    paddingHorizontal: 16,
+    height: 44,
+    borderWidth: 1,
+    fontSize: 14,
+  },
+  card: {
+    borderRadius: 18,
+    padding: 14,
+    marginBottom: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1,
+  },
+  rowAvatar: { width: 50, height: 50, borderRadius: 25, marginRight: 12 },
+  rowName: { fontWeight: "700", fontSize: 15 },
+  callActions: { flexDirection: "row", gap: 8, marginLeft: 8 },
+  roundBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  empty: { textAlign: "center", marginTop: 48, fontSize: 15 },
+});
