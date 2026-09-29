@@ -35,14 +35,7 @@
       ]
     },
     "plugins": [
-      "expo-router",
-      [
-        "react-native-webrtc",
-        {
-          "cameraPermission": "MindMate ভিডিও কলের জন্য ক্যামেরা প্রয়োজন",
-          "microphonePermission": "MindMate অডিও ও ভিডিও কলের জন্য মাইক্রোফোন প্রয়োজন"
-        }
-      ]
+      "expo-router"
     ],
     "scheme": "mindmate",
     "runtimeVersion": {
