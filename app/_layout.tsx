@@ -1,18 +1,24 @@
-import "../global.css";
 import { Stack, router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useRef } from "react";
 import { Alert } from "react-native";
 import { useAuthStore } from "../stores/authStore";
+import { useSettingsStore } from "../stores/settingsStore";
 import { supabase } from "../lib/supabase";
 import { checkNetworkAndCountry } from "../lib/security";
 import { subscribeIncomingCalls } from "../lib/incomingCall";
 
 export default function RootLayout() {
   const { session, setSession, setProfile, setLoading } = useAuthStore();
-  const channelRef = useRef<ReturnType<typeof subscribeIncomingCalls> | null>(null);
+  const { darkMode, hydrate } = useSettingsStore();
+  const channelRef = useRef<ReturnType<typeof subscribeIncomingCalls> | null>(
+    null
+  );
 
-  // Auth Initialization & Listener
+  useEffect(() => {
+    hydrate();
+  }, []);
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
@@ -38,7 +44,6 @@ export default function RootLayout() {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Global Incoming Call Listener
   useEffect(() => {
     const uid = session?.user?.id;
     if (!uid) {
@@ -84,23 +89,30 @@ export default function RootLayout() {
         setSession(null);
         setProfile(null);
         setLoading(false);
-        Alert.alert("ব্যান", "তোমার অ্যাকাউন্ট ব্যান করা হয়েছে।");
+        Alert.alert("Banned", "Account banned");
         return;
       }
 
-      setProfile(data);
+      let final = data;
+      try {
+        if (!data.phone_code) {
+          const { data: code } = await supabase.rpc("ensure_my_phone_code");
+          if (code) final = { ...data, phone_code: code as string };
+        }
+      } catch {
+        /* SQL later */
+      }
+
+      setProfile(final);
 
       try {
         const net = await checkNetworkAndCountry(userId);
         if (net.vpnSuspected) {
-          Alert.alert(
-            "VPN সনাক্ত",
-            "অ্যাপ ব্যবহার করতে VPN বন্ধ করুন। তারপর আবার চেষ্টা করুন।"
-          );
+          Alert.alert("VPN", "Please turn off VPN");
         }
         await supabase.rpc("refresh_expat_flag", { p_user_id: userId });
       } catch {
-        // ignore
+        /* optional */
       }
     }
 
@@ -109,17 +121,18 @@ export default function RootLayout() {
 
   return (
     <>
-      <StatusBar style="dark" />
+      <StatusBar style={darkMode ? "light" : "dark"} />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="index" />
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="calls" />
+        <Stack.Screen name="profile/edit" />
         <Stack.Screen name="host" />
         <Stack.Screen name="cabin/[hostId]" />
         <Stack.Screen name="conversation/[sessionId]" />
         <Stack.Screen name="earn" />
         <Stack.Screen name="admin" />
-        <Stack.Screen name="calls" />
       </Stack>
     </>
   );
