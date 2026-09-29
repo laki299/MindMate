@@ -1,239 +1,225 @@
-import { View, Text, TouchableOpacity, Alert, Share } from "react-native";
+import { View, Text, TouchableOpacity, Image, ScrollView, StyleSheet } from "react-native";
 import { router } from "expo-router";
-import { supabase } from "../../lib/supabase";
 import { useAuthStore } from "../../stores/authStore";
-import { COLORS } from "../../lib/constants";
+import { useSettingsStore } from "../../stores/settingsStore";
+import { t } from "../../lib/i18n";
+import { supabase } from "../../lib/supabase";
 
 export default function ProfileScreen() {
   const { profile, setSession, setProfile } = useAuthStore();
+  const { lang, theme, darkMode, setLang, setDarkMode } = useSettingsStore();
+  const s = t(lang);
 
-  async function handleCopyUUID() {
-    if (!profile?.id) return;
-    try {
-      await Share.share({ message: profile.id, title: "My UUID" });
-    } catch {
-      Alert.alert("Your UUID", profile.id);
-    }
-  }
-
-  async function handleLogout() {
-    Alert.alert("Logout", "তুমি কি লগআউট করতে চাও?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Logout",
-        style: "destructive",
-        onPress: async () => {
-          await supabase.auth.signOut();
-          setSession(null);
-          setProfile(null);
-          router.replace("/(auth)/login");
-        },
-      },
-    ]);
+  async function logout() {
+    await supabase.auth.signOut();
+    setSession(null);
+    setProfile(null);
+    router.replace("/(auth)/login");
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: COLORS.background }}>
-      {/* Header */}
-      <View
-        style={{
-          paddingTop: 60,
-          paddingHorizontal: 20,
-          paddingBottom: 16,
-          backgroundColor: COLORS.card,
-          borderBottomWidth: 1,
-          borderBottomColor: COLORS.border,
-        }}
-      >
-        <Text style={{ fontSize: 24, fontWeight: "700", color: COLORS.text }}>
-          Profile
+    <ScrollView
+      style={{ flex: 1, backgroundColor: theme.bg }}
+      contentContainerStyle={{ paddingBottom: 48 }}
+      showsVerticalScrollIndicator={false}
+    >
+      <View style={[styles.blob, { backgroundColor: theme.softPurple }]} />
+
+      <View style={{ alignItems: "center", paddingTop: 56, paddingHorizontal: 20 }}>
+        <Text style={styles.brand}>
+          <Text style={{ color: theme.primaryDark }}>Mind</Text>
+          <Text style={{ color: theme.primary }}>Mate</Text>
         </Text>
-      </View>
+        <Text style={{ color: theme.textMuted, marginBottom: 22, fontSize: 13 }}>
+          {s.safeSecure}
+        </Text>
 
-      <View style={{ padding: 20 }}>
-        {/* User Card */}
+        <Image
+          source={
+            profile?.avatar_url
+              ? { uri: profile.avatar_url }
+              : require("../../assets/icon.png")
+          }
+          style={[
+            styles.bigAvatar,
+            { borderColor: theme.primary, backgroundColor: theme.softPurple },
+          ]}
+        />
+
         <View
-          style={{
-            backgroundColor: COLORS.card,
-            borderRadius: 16,
-            padding: 20,
-            marginBottom: 16,
-            borderWidth: 1,
-            borderColor: COLORS.border,
-          }}
+          style={[
+            styles.card,
+            { backgroundColor: theme.card, borderColor: theme.border },
+          ]}
         >
-          <Text
-            style={{
-              fontSize: 20,
-              fontWeight: "600",
-              color: COLORS.text,
-              marginBottom: 4,
-            }}
-          >
-            {profile?.full_name || "User"}
-          </Text>
-          <Text style={{ color: COLORS.textSecondary, marginBottom: 4 }}>
-            Role: {profile?.role}
-          </Text>
-          <Text style={{ color: COLORS.textSecondary, marginBottom: 12 }}>
-            Coin Balance: 🪙 {profile?.coin_balance ?? 0}
-          </Text>
-
-          {/* MindMate Phone Code */}
-          {profile?.phone_code ? (
-            <TouchableOpacity
-              onPress={() => router.push("/calls/my-number")}
-              style={{
-                marginTop: 4,
-                marginBottom: 12,
-                backgroundColor: COLORS.background,
-                padding: 10,
-                borderRadius: 10,
-                borderWidth: 1,
-                borderColor: COLORS.border,
-              }}
-            >
-              <Text style={{ color: COLORS.primary, fontWeight: "600", fontSize: 16 }}>
-                📞 {profile.phone_code}
-              </Text>
-              <Text style={{ color: COLORS.textSecondary, fontSize: 12, marginTop: 2 }}>
-                MindMate নম্বর · ট্যাপ করে শেয়ার
-              </Text>
-            </TouchableOpacity>
-          ) : null}
-
-          {/* Coin Debt */}
-          {(profile?.coin_debt || 0) > 0 ? (
-            <Text style={{ color: COLORS.warning, marginBottom: 8, fontWeight: "600" }}>
-              বকেয়া কয়েন: {profile?.coin_debt}
-            </Text>
-          ) : null}
-
-          {/* Expat Status */}
-          {profile?.is_expat ? (
-            <Text style={{ color: COLORS.textSecondary, fontSize: 12, marginBottom: 12 }}>
-              প্রবাসী অ্যাকাউন্ট · হোস্ট ক্যাবিন চালু
-            </Text>
-          ) : (
-            <Text style={{ color: COLORS.textSecondary, fontSize: 12, marginBottom: 12 }}>
-              স্থানীয় · হোস্ট ক্যাবিন নেই · A2A কল ব্যবহার করো
-            </Text>
-          )}
-
-          {/* UUID Copy */}
-          <TouchableOpacity
-            onPress={handleCopyUUID}
-            style={{
-              backgroundColor: COLORS.background,
-              borderRadius: 10,
-              padding: 12,
-              borderWidth: 1,
-              borderColor: COLORS.border,
-            }}
-          >
-            <Text style={{ color: COLORS.textSecondary, fontSize: 12 }}>
-              UUID (ট্যাপ করে শেয়ার/কপি)
-            </Text>
-            <Text
-              style={{
-                color: COLORS.primary,
-                fontSize: 13,
-                marginTop: 4,
-                fontWeight: "600",
-              }}
-              numberOfLines={1}
-            >
-              {profile?.id}
-            </Text>
-          </TouchableOpacity>
+          <Info label={s.name} value={profile?.full_name || "—"} theme={theme} />
+          <Info
+            label={s.uid}
+            value={profile?.phone_code || "----------"}
+            theme={theme}
+          />
+          <Info
+            label={s.bio}
+            value={profile?.bio || "—"}
+            theme={theme}
+            last
+          />
         </View>
 
-        {/* Menu Items */}
         <TouchableOpacity
-          onPress={() => router.push("/(tabs)/calls")}
-          style={{
-            backgroundColor: COLORS.card,
-            borderRadius: 12,
-            padding: 16,
-            alignItems: "center",
-            marginBottom: 12,
-            borderWidth: 1,
-            borderColor: COLORS.border,
-          }}
+          onPress={() => router.push("/profile/edit")}
+          activeOpacity={0.85}
+          style={[styles.editBtn, { backgroundColor: theme.primaryDark }]}
         >
-          <Text style={{ color: COLORS.primary, fontWeight: "600", fontSize: 16 }}>
-            📞 কল / কন্টাক্টস
-          </Text>
+          <Text style={styles.editBtnText}>✏️  {s.edit}</Text>
         </TouchableOpacity>
 
-        {profile?.role === "admin" && (
-          <TouchableOpacity
-            onPress={() => router.push("/admin")}
-            style={{
-              backgroundColor: COLORS.card,
-              borderRadius: 12,
-              padding: 16,
-              alignItems: "center",
-              marginBottom: 12,
-              borderWidth: 1,
-              borderColor: COLORS.border,
-            }}
-          >
-            <Text
-              style={{
-                color: COLORS.primary,
-                fontWeight: "600",
-                fontSize: 16,
-              }}
-            >
-              Admin Panel
-            </Text>
-          </TouchableOpacity>
-        )}
-
-        {profile?.role === "host" && (
-          <TouchableOpacity
-            onPress={() => router.push("/host")}
-            style={{
-              backgroundColor: COLORS.card,
-              borderRadius: 12,
-              padding: 16,
-              alignItems: "center",
-              marginBottom: 12,
-              borderWidth: 1,
-              borderColor: COLORS.border,
-            }}
-          >
-            <Text
-              style={{
-                color: COLORS.primary,
-                fontWeight: "600",
-                fontSize: 16,
-              }}
-            >
-              Host Dashboard
-            </Text>
-          </TouchableOpacity>
-        )}
-
-        {/* Logout */}
-        <TouchableOpacity
-          onPress={handleLogout}
-          style={{
-            backgroundColor: "#FEE2E2",
-            borderRadius: 12,
-            padding: 16,
-            alignItems: "center",
-            marginTop: 8,
-          }}
+        <View
+          style={[
+            styles.card,
+            {
+              backgroundColor: theme.card,
+              borderColor: theme.border,
+              marginTop: 22,
+              width: "100%",
+            },
+          ]}
         >
-          <Text
-            style={{ color: COLORS.danger, fontWeight: "600", fontSize: 16 }}
-          >
-            Logout
+          <Text style={{ fontWeight: "800", color: theme.text, marginBottom: 14 }}>
+            {s.settings}
+          </Text>
+          <Text style={{ color: theme.textMuted, marginBottom: 8 }}>{s.language}</Text>
+          <View style={{ flexDirection: "row", gap: 10, marginBottom: 18 }}>
+            <Seg
+              active={lang === "bn"}
+              label={s.bangla}
+              onPress={() => setLang("bn")}
+              theme={theme}
+            />
+            <Seg
+              active={lang === "en"}
+              label={s.english}
+              onPress={() => setLang("en")}
+              theme={theme}
+            />
+          </View>
+          <Text style={{ color: theme.textMuted, marginBottom: 8 }}>{s.theme}</Text>
+          <View style={{ flexDirection: "row", gap: 10 }}>
+            <Seg
+              active={!darkMode}
+              label={s.light}
+              onPress={() => setDarkMode(false)}
+              theme={theme}
+            />
+            <Seg
+              active={darkMode}
+              label={s.night}
+              onPress={() => setDarkMode(true)}
+              theme={theme}
+            />
+          </View>
+        </View>
+
+        <TouchableOpacity onPress={logout} style={{ marginTop: 28 }}>
+          <Text style={{ color: theme.danger, fontWeight: "700", fontSize: 15 }}>
+            {s.logout}
           </Text>
         </TouchableOpacity>
       </View>
+    </ScrollView>
+  );
+}
+
+function Info({
+  label,
+  value,
+  theme,
+  last,
+}: {
+  label: string;
+  value: string;
+  theme: any;
+  last?: boolean;
+}) {
+  return (
+    <View
+      style={{
+        paddingVertical: 14,
+        borderBottomWidth: last ? 0 : 1,
+        borderBottomColor: theme.border,
+      }}
+    >
+      <Text style={{ color: theme.textMuted, fontSize: 12, fontWeight: "600" }}>
+        {label}
+      </Text>
+      <Text
+        style={{
+          color: theme.text,
+          fontWeight: "700",
+          marginTop: 4,
+          fontSize: 15,
+        }}
+      >
+        {value}
+      </Text>
     </View>
   );
 }
+
+function Seg({ active, label, onPress, theme }: any) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      style={{
+        flex: 1,
+        paddingVertical: 11,
+        borderRadius: 14,
+        backgroundColor: active ? theme.primary : theme.inputBg,
+        alignItems: "center",
+      }}
+    >
+      <Text style={{ color: active ? "#fff" : theme.text, fontWeight: "700" }}>
+        {label}
+      </Text>
+    </TouchableOpacity>
+  );
+}
+
+const styles = StyleSheet.create({
+  blob: {
+    position: "absolute",
+    top: -50,
+    right: -30,
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    opacity: 0.4,
+  },
+  brand: { fontSize: 24, fontWeight: "800" },
+  bigAvatar: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    borderWidth: 3,
+  },
+  card: {
+    width: "100%",
+    borderRadius: 20,
+    padding: 18,
+    marginTop: 24,
+    borderWidth: 1,
+  },
+  editBtn: {
+    marginTop: 20,
+    width: "100%",
+    height: 54,
+    borderRadius: 28,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#4F46E5",
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  editBtnText: { color: "#fff", fontWeight: "700", fontSize: 16 },
+});
