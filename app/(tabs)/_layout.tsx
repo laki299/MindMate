@@ -1,68 +1,72 @@
 import { Tabs } from "expo-router";
-import { Text } from "react-native";
-import { COLORS } from "../../lib/constants";
+import { Text, View } from "react-native";
+import { useSettingsStore } from "../../stores/settingsStore";
+import { t } from "../../lib/i18n";
 
 export default function TabsLayout() {
+  const { lang, theme } = useSettingsStore();
+  const s = t(lang);
+
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: COLORS.primary,
-        tabBarInactiveTintColor: COLORS.textSecondary,
+        tabBarActiveTintColor: theme.primary,
+        tabBarInactiveTintColor: theme.textMuted,
         tabBarStyle: {
-          backgroundColor: COLORS.card,
-          borderTopColor: COLORS.border,
-          height: 60,
-          paddingBottom: 8,
+          backgroundColor: theme.tabBar,
+          borderTopColor: theme.border,
+          borderTopWidth: 1,
+          height: 64,
+          paddingBottom: 10,
           paddingTop: 8,
+          elevation: 12,
+          shadowColor: "#000",
+          shadowOpacity: 0.06,
+          shadowRadius: 8,
         },
+        tabBarLabelStyle: { fontSize: 11, fontWeight: "600" },
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
-          title: "Home",
-          tabBarIcon: ({ color }) => (
-            <Text style={{ fontSize: 20, color }}>🏠</Text>
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="calls"
-        options={{
-          title: "Calls",
-          tabBarIcon: ({ color }) => (
-            <Text style={{ fontSize: 20, color }}>📞</Text>
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="wallet"
-        options={{
-          title: "Wallet",
-          tabBarIcon: ({ color }) => (
-            <Text style={{ fontSize: 20, color }}>🪙</Text>
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="conversations"
-        options={{
-          title: "Chats",
-          tabBarIcon: ({ color }) => (
-            <Text style={{ fontSize: 20, color }}>💬</Text>
+          title: s.home,
+          tabBarIcon: ({ color, focused }) => (
+            <View
+              style={{
+                backgroundColor: focused ? theme.softPurple : "transparent",
+                paddingHorizontal: 12,
+                paddingVertical: 4,
+                borderRadius: 12,
+              }}
+            >
+              <Text style={{ fontSize: 22, color }}>🏠</Text>
+            </View>
           ),
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
-          title: "Profile",
-          tabBarIcon: ({ color }) => (
-            <Text style={{ fontSize: 20, color }}>👤</Text>
+          title: s.profile,
+          tabBarIcon: ({ color, focused }) => (
+            <View
+              style={{
+                backgroundColor: focused ? theme.softPurple : "transparent",
+                paddingHorizontal: 12,
+                paddingVertical: 4,
+                borderRadius: 12,
+              }}
+            >
+              <Text style={{ fontSize: 22, color }}>👤</Text>
+            </View>
           ),
         }}
       />
+      <Tabs.Screen name="calls" options={{ href: null }} />
+      <Tabs.Screen name="wallet" options={{ href: null }} />
+      <Tabs.Screen name="conversations" options={{ href: null }} />
     </Tabs>
   );
 }
