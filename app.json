@@ -15,8 +15,8 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.mindmate.app",
       "infoPlist": {
-        "NSMicrophoneUsageDescription": "MindMate অডিও ও ভিডিও কলের জন্য মাইক্রোফোন প্রয়োজন",
-        "NSCameraUsageDescription": "MindMate ভিডিও কলের জন্য ক্যামেরা প্রয়োজন"
+        "NSMicrophoneUsageDescription": "MindMate needs microphone for audio and video calls",
+        "NSCameraUsageDescription": "MindMate needs camera for video calls"
       }
     },
     "android": {
@@ -35,12 +35,11 @@
     },
     "plugins": [
       "expo-router",
-      "expo-screen-capture",
       [
         "@config-plugins/react-native-webrtc",
         {
-          "cameraPermission": "MindMate ভিডিও কলের জন্য ক্যামেরা প্রয়োজন",
-          "microphonePermission": "MindMate অডিও ও ভিডিও কলের জন্য মাইক্রোফোন প্রয়োজন"
+          "cameraPermission": "MindMate needs camera for video calls",
+          "microphonePermission": "MindMate needs microphone for audio and video calls"
         }
       ]
     ],
