@@ -2,7 +2,6 @@
   "name": "mindmate",
   "version": "1.0.0",
   "main": "expo-router/entry",
-  "packageManager": "npm@10.8.2",
   "scripts": {
     "eas-build-pre-install": "yarn config set ignore-engines true || true",
     "start": "expo start",
