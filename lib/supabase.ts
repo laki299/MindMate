@@ -3,19 +3,12 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createClient } from "@supabase/supabase-js";
 
 const supabaseUrl =
-  process.env.EXPO_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
-const supabaseAnonKey =
-  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ||
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.placeholder";
+  process.env.EXPO_PUBLIC_SUPABASE_URL ??
+  "https://surglrybvcwnxqjmvbid.supabase.co";
 
-if (
-  !process.env.EXPO_PUBLIC_SUPABASE_URL ||
-  !process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY
-) {
-  console.warn(
-    "MindMate: EXPO_PUBLIC_SUPABASE_URL / ANON_KEY missing in EAS env"
-  );
-}
+const supabaseAnonKey =
+  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ??
+  "sb_publishable_O1vchNILdJYfQpVFZ186QQ_7-5QQQe9";
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
